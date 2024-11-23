@@ -1,0 +1,11 @@
+{
+  "additionalFiles": "..\\..\\..,..\\..\\..,..\\..\\..,..\\..,..\\..,..\\..,..\\..,..\\..,..\\..,..\\..,..\\..",
+  "builtInToolsFolders": "",
+  "compiler.optimization_flags": "",
+  "customBuildProperties": "compiler.cpp.extra_flags=-DMY_DEBUG=0 -DSW_VERSION_0=1 -DSW_VERSION_1=0 -DSW_VERSION_2=0",
+  "fqbn": "rak_rui:stm32:WisDuoRAK3172EvaluationBoard:debug=l0,supportat=1,supportlora=1,supportAS923=1,supportAU915=1,supportCN470=1,supportCN779=1,supportEU433=1,supportEU868=1,supportKR920=1,supportIN865=1,supportUS915=1,supportRU864=1,supportLA915=1",
+  "hardwareFolders": "C:\\Users\\bernd\\AppData\\Local\\Arduino15\\packages",
+  "otherLibrariesFolders": "D:\\Projects\\libraries",
+  "runtime.ide.version": "10607",
+  "sketchLocation": "D:\\#Github\\Solutions-RUI3\\RUI3-RS485-Soil-Sensor"
+}

@@ -1,0 +1,4 @@
+D:\\#Github\Solutions-RUI3\RUI3-RS485-Soil-Sensor\build\core\component\fund\event_queue\fund_event_queue.c.o: \
+ C:\Users\bernd\AppData\Local\Arduino15\packages\rak_rui\hardware\stm32\4.2.0\cores\STM32WLE\component\fund\event_queue\fund_event_queue.c \
+ C:\Users\bernd\AppData\Local\Arduino15\packages\rak_rui\hardware\stm32\4.2.0\cores\STM32WLE\component\fund\event_queue\fund_event_queue.h \
+ C:\Users\bernd\AppData\Local\Arduino15\packages\rak_rui\hardware\stm32\4.2.0/cores/STM32WLE/component/udrv/udrv_errno.h
