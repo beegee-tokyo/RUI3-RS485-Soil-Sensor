@@ -49,6 +49,10 @@ Firmware is based on [RUI3-RAK5802-Modbus-Master](https://github.com/RAKWireless
 
 To achieve good sensor readings, the sensor is powered up for 10 minutes before the sensor data is read. This gives the sensor time to do the readings and calculations.
 
+----
+
+## Custom AT commands
+
 Send interval of the sensor values can be set with a custom AT command. Interval time is set in _**seconds**_
 
 _**`ATC+SENDINT?`**_ Command definition
@@ -65,3 +69,28 @@ OK
 
 #### ⚠️ IMPORTANT ⚠️  
 Send interval cannot be less than 2 times the sensor power on time. With the current settings the minimum send interval is 20 minutes
+
+----
+
+## Write to coils or registers
+
+To control the coils, a downlink from the LoRaWAN server is required. The downlink packet format is     
+`AA55ccddnnv1v2` as hex values       
+`AA55` is a simple packet marker       
+`cc` is the command, supported is only MB_FC_WRITE_MULTIPLE_COILS    
+`dd` is the slave address    
+`nn` is the number of coils to write     
+`v1`, `v2` are the coil status. 0 ==> coil off, 1 ==> coil on, `nn` status are expected     
+
+To write to registers, a downlink from the LoRaWAN server is required. The downlink packet format is     
+`AA55ccddnnv1v2` as hex values       
+`AA55` is a simple packet marker       
+`cc` is the command, supported are MB_FC_WRITE_REGISTER and MB_FC_WRITE_MULTIPLE_REGISTERS    
+`dd` is the slave address    
+`aa` is the start address of the registers
+`nn` is the number of registers to write     
+if MB_FC_WRITE_REGISTER    
+	`v1` and `v2` is the 16bit value to write to the register    
+if MB_FC_WRITE_MULTIPLE_REGISTERS    
+	`v1` and `v2` are the 16bit value to write to the register, `nn` arrays of `v1` and `v2` are expected    
+   

@@ -20,26 +20,26 @@
  * 0x0007 	???		Salinity
  * 0x0008 	???		TDS (for reference ?????)
  *
- * 0x0022 Temperature coefficient of conductivity
- * 0x0023 TDS coefficient
+ * 0x0022 	???		Temperature coefficient of conductivity
+ * 0x0023 	???		TDS coefficient
  *
- * 0x0050 Temperature calibration value
- * 0x0051 Mositure content calibration value
- * 0x0052 Conductivity calibration value
- * 0x0053 pH calibration value
+ * 0x0050 	???		Temperature calibration value
+ * 0x0051 	???		Mositure content calibration value
+ * 0x0052 	???		Conductivity calibration value
+ * 0x0053 	???		pH calibration value
  *
- * 0x04e8 Nitrogen content coefficient MSB (temporary)
- * 0x04e9 Nitrogen content coefficient LSB (temporary)
- * 0x04ea Nitrogen deviation (temporary)
- * 0x04f2 Phosphorus coefficient MSB (temporary)
- * 0x04f3 Phosphorus coefficient LSB (temporary)
- * 0x04f4 Phosphorus deviation (temporary)
- * 0x04fc Potassium content coefficient MSB (temporary)
- * 0x04fd Potassium content coefficient LSB (temporary)
- * 0x04fe Potassium deviation (temporary)
+ * 0x04e8 	???		Nitrogen content coefficient MSB (temporary)
+ * 0x04e9 	???		Nitrogen content coefficient LSB (temporary)
+ * 0x04ea 	???		Nitrogen deviation (temporary)
+ * 0x04f2 	???		Phosphorus coefficient MSB (temporary)
+ * 0x04f3 	???		Phosphorus coefficient LSB (temporary)
+ * 0x04f4 	???		Phosphorus deviation (temporary)
+ * 0x04fc 	???		Potassium content coefficient MSB (temporary)
+ * 0x04fd 	???		Potassium content coefficient LSB (temporary)
+ * 0x04fe 	???		Potassium deviation (temporary)
  *
- * 0x07d0 Device address
- * 0x07d1 Baud Rate
+ * 0x07d0 	???		Device address
+ * 0x07d1 	???		Baud Rate
  */
 
 #include "app.h"
@@ -67,8 +67,23 @@ struct coil_s
 	int8_t num_coils = 0;
 };
 
+/** This is the structure to write to specific registers in the ModBus slave */
+struct register_s
+{
+	int8_t dev_addr = 1;
+	int8_t registers[16];
+	int8_t num_registers = 0;
+	int16_t register_start_address = 0;
+};
+
 /** Coils structure */
 coil_s coil_data;
+
+/** Register structure */
+register_s register_data;
+
+/** Flag if write is for coils or for registers */
+bool is_registers = false;
 
 /** Packet is confirmed/unconfirmed (Set with AT commands) */
 bool g_confirmed_mode = false;
@@ -126,9 +141,11 @@ void receiveCallback(SERVICE_LORA_RECEIVE_T *data)
 	// Check for valid command sequence
 	if ((data->Buffer[0] == 0xAA) && (data->Buffer[1] == 0x55))
 	{
-		// Check for command (only MB_FC_WRITE_MULTIPLE_COILS supported atm)
+		// Check for command
 		if (data->Buffer[2] == MB_FC_WRITE_MULTIPLE_COILS)
 		{
+			// Write coils, set flag for coils write
+			is_registers = false;
 			// Get slave address
 			coil_data.dev_addr = data->Buffer[3];
 			if ((coil_data.dev_addr > 0) && (coil_data.dev_addr < 17))
@@ -151,6 +168,35 @@ void receiveCallback(SERVICE_LORA_RECEIVE_T *data)
 				{
 					MYLOG("RX_CB", "Wrong num of coils");
 				}
+			}
+			else
+			{
+				MYLOG("RX_CB", "invalid slave address");
+			}
+		}
+		else if ((data->Buffer[2] == MB_FC_WRITE_REGISTER) || (data->Buffer[2] == MB_FC_WRITE_MULTIPLE_REGISTERS))
+		{
+			// Write registers, set flag for register write
+			is_registers = true;
+
+			// Get slave address
+			register_data.dev_addr = data->Buffer[3];
+			if ((register_data.dev_addr > 0) && (register_data.dev_addr < 17))
+			{
+				// Get start address of the registers
+				register_data.register_start_address = data->Buffer[4];
+
+				// Get number of coils
+				register_data.num_registers = data->Buffer[5];
+
+				// Save register status
+				for (int idx = 0; idx < register_data.num_registers * 2; idx = idx + 2)
+				{
+					register_data.registers[idx / 2] = (uint16_t)(data->Buffer[6 + idx]) << 8;
+					register_data.registers[idx / 2] |= (uint16_t)(data->Buffer[7 + idx]);
+				}
+				// Start a timer to handle the incoming register write request.
+				api.system.timer.start(RAK_TIMER_1, 100, NULL);
 			}
 			else
 			{
@@ -379,6 +425,12 @@ void setup()
 #endif
 }
 
+/**
+ * @brief Power up sensor for data collection
+ * 		Power up time is defined by SENSOR_POWER_TIME
+ * 		Sensor reading and data transmission is done after SENSOR_POWER_TIME
+ *
+ */
 void modbus_start_sensor(void *)
 {
 	digitalWrite(WB_IO2, HIGH);
@@ -388,29 +440,41 @@ void modbus_start_sensor(void *)
 	api.system.timer.start(RAK_TIMER_2, SENSOR_POWER_TIME, NULL); // 600000 ms = 600 seconds = 10 minutes power on
 }
 
+/**
+ * @brief Read ModBus registers
+ * 		Reads first 9 registers with the sensor data
+ * 		If sensor data could be retrieved, the sensor data is sent over LoRa/LoRaWAN
+ *
+ */
 void modbus_read_register(void *)
 {
 	Serial1.begin(4800);
 	delay(500);
 	MYLOG("MODR", "Send read request over ModBus");
+	// Clear data structure
 	coils_n_regs.data[0] = coils_n_regs.data[1] = coils_n_regs.data[2] = coils_n_regs.data[3] = coils_n_regs.data[4] = 0xFFFF;
 	coils_n_regs.data[5] = coils_n_regs.data[6] = coils_n_regs.data[7] = coils_n_regs.data[8] = 0xFFFF;
+	// Setup read command
 	telegram.u8id = 1;					   // slave address
 	telegram.u8fct = MB_FC_READ_REGISTERS; // function code (this one is registers read)
 	telegram.u16RegAdd = 0;				   // start address in slave
 	telegram.u16CoilsNo = 9;			   // number of elements (coils or registers) to read
 	telegram.au16reg = coils_n_regs.data;  // pointer to a memory array in the Arduino
 
-	master.query(telegram); // send query (only once)
+	// Send query (only once)
+	master.query(telegram);
 
 	time_t start_poll = millis();
-
 	bool data_ready = false;
+	// Wait for slave response for 5 seconds
 	while ((millis() - start_poll) < 5000)
 	{
-		master.poll(); // check incoming messages
+		// Check incoming messages
+		master.poll();
+		// Status idle, either data was received or the slave response timed out
 		if (master.getState() == COM_IDLE)
 		{
+			// Check if register structure has changed
 			if ((coils_n_regs.data[0] == 0xFFFF) && (coils_n_regs.data[1] == 0xFFFF) && (coils_n_regs.data[2] == 0xFFFF) && (coils_n_regs.data[3] == 0xFFFF) && (coils_n_regs.data[4] == 0xFFFF) && (coils_n_regs.data[5] == 0xFFFF) && (coils_n_regs.data[6] == 0xFFFF) && (coils_n_regs.data[7] == 0xFFFF) && (coils_n_regs.data[8] == 0xFFFF))
 			{
 				MYLOG("MODR", "No data received");
@@ -436,42 +500,32 @@ void modbus_read_register(void *)
 				// Clear payload
 				g_solution_data.reset();
 
-				// if (coils_n_regs.sensor_data.temperature != 0)
-				{
-					g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.temperature / 10.0);
-				}
-				// if (coils_n_regs.sensor_data.moisture != 0)
-				{
-					g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, coils_n_regs.sensor_data.moisture / 10.0);
-				}
-				// if (coils_n_regs.sensor_data.conductivity != 0)
-				{
-					g_solution_data.addAnalogInput(LPP_CHANNEL_COND, coils_n_regs.sensor_data.conductivity * 1.0);
-				}
-				// if (coils_n_regs.sensor_data.ph_value != 0)
-				{
-					g_solution_data.addAnalogInput(LPP_CHANNEL_PH, coils_n_regs.sensor_data.ph_value / 10.0);
-				}
-				// if (coils_n_regs.sensor_data.nitrogen != 0)
-				{
-					g_solution_data.addAnalogInput(LPP_CHANNEL_NITRO, coils_n_regs.sensor_data.nitrogen * 1.0);
-				}
-				// if (coils_n_regs.sensor_data.phosphorus != 0)
-				{
-					g_solution_data.addAnalogInput(LPP_CHANNEL_PHOS, coils_n_regs.sensor_data.phosphorus * 1.0);
-				}
-				// if (coils_n_regs.sensor_data.potassium != 0)
-				{
-					g_solution_data.addAnalogInput(LPP_CHANNEL_POTA, coils_n_regs.sensor_data.potassium * 1.0);
-				}
-				// if (coils_n_regs.sensor_data.salinity != 0)
-				{
-					g_solution_data.addAnalogInput(LPP_CHANNEL_SALIN, coils_n_regs.sensor_data.salinity * 1.0);
-				}
-				// if (coils_n_regs.sensor_data.tds != 0)
-				{
-					g_solution_data.addAnalogInput(LPP_CHANNEL_TDS, coils_n_regs.sensor_data.tds * 1.0);
-				}
+				// Add temperature level to payload
+				g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.temperature / 10.0);
+
+				// Add moisture level to payload
+				g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, coils_n_regs.sensor_data.moisture / 10.0);
+
+				// Add conductivity value to payload
+				g_solution_data.addAnalogInput(LPP_CHANNEL_COND, coils_n_regs.sensor_data.conductivity * 1.0);
+
+				// Add pH value to payload
+				g_solution_data.addAnalogInput(LPP_CHANNEL_PH, coils_n_regs.sensor_data.ph_value / 10.0);
+
+				// Add nitrogen level to payload
+				g_solution_data.addAnalogInput(LPP_CHANNEL_NITRO, coils_n_regs.sensor_data.nitrogen * 1.0);
+
+				// Add phosphorus level to payload
+				g_solution_data.addAnalogInput(LPP_CHANNEL_PHOS, coils_n_regs.sensor_data.phosphorus * 1.0);
+
+				// Addf potassium level to payload
+				g_solution_data.addAnalogInput(LPP_CHANNEL_POTA, coils_n_regs.sensor_data.potassium * 1.0);
+
+				// Add salinity level to payload
+				g_solution_data.addAnalogInput(LPP_CHANNEL_SALIN, coils_n_regs.sensor_data.salinity * 1.0);
+
+				// Add TDS value to payload
+				g_solution_data.addAnalogInput(LPP_CHANNEL_TDS, coils_n_regs.sensor_data.tds * 1.0);
 
 				float battery_reading = 0.0;
 				// Add battery voltage
@@ -491,49 +545,99 @@ void modbus_read_register(void *)
 
 	if (data_ready)
 	{
-		// Send the packet
+		// Send the packet if data was received
 		send_packet();
 	}
+	// Shut down sensors and communication for lowest power consumption
 	digitalWrite(WB_IO2, LOW);
 	Serial1.end();
 	udrv_serial_deinit(SERIAL_UART1);
 	digitalWrite(LED_BLUE, LOW);
 }
 
+/**
+ * @brief Write to ModBus slave
+ * 		Modbus register/coil address and data is prepared in
+ * 		coil_data structure or registers_data structure
+ *
+ */
 void modbus_write_coil(void *)
 {
 	// Coils are in 16 bit register in form of 7-0, 15-8
 	digitalWrite(WB_IO2, HIGH);
 	Serial1.begin(4800);
-	MYLOG("MODW", "Send write coil request over ModBus");
 
-	MYLOG("MODW", "Num of coils %d", coil_data.num_coils);
-
-	// Reset the register
-	coils_n_regs.data[0] = 0;
-
-	// Prepare coils STATUS
-	uint8_t coil_shift = 8;
-	for (int idx = 0; idx < coil_data.num_coils; idx++)
+	// Check if we write coils or registers
+	if (is_registers)
 	{
-		MYLOG("MODW", "Coil %d %s %d", idx, coil_data.coils[idx] == 0 ? "off" : "on", coil_data.coils[idx] << coil_shift);
-		coils_n_regs.data[0] |= coil_data.coils[idx] << coil_shift;
-		MYLOG("MODW", "Coil data %02X", coils_n_regs.data[0]);
-		coil_shift++;
-		if (coil_shift == 16)
+		MYLOG("MODW", "Send write register request over ModBus");
+		MYLOG("MODW", "Num of registers %d", register_data.num_registers);
+
+		coils_n_regs.data[0] = coils_n_regs.data[1] = coils_n_regs.data[2] = coils_n_regs.data[3] = 0;
+		coils_n_regs.data[4] = coils_n_regs.data[5] = coils_n_regs.data[6] = coils_n_regs.data[7] = 0;
+
+		// Check number of registers to write
+		if (register_data.num_registers > 8)
 		{
-			coil_shift = 0;
+			MYLOG("MODW", "Too many registers requested to write. Only max 8 are allowed");
+			return;
 		}
+		// Save register status
+		for (int idx = 0; idx < register_data.num_registers; idx++)
+		{
+			coils_n_regs.data[idx] = register_data.registers[idx];
+		}
+
+		telegram.u8id = register_data.dev_addr; // slave address
+		if (register_data.num_registers == 1)
+		{
+			telegram.u8fct = MB_FC_WRITE_REGISTER; // function code (this one is single register write)
+		}
+		else
+		{
+			telegram.u8fct = MB_FC_WRITE_MULTIPLE_REGISTERS; // function code (this one is multiple registers write write)
+		}
+		telegram.u16RegAdd = register_data.register_start_address; // start address in slave
+		telegram.u16CoilsNo = register_data.num_registers;		   // number of registers to write
+		telegram.au16reg = coils_n_regs.data;					   // pointer to a memory array in the Arduino
 	}
-	MYLOG("MODW", "Coil data %02X", coils_n_regs.data[0]);
+	else
+	{
+		MYLOG("MODW", "Send write coil request over ModBus");
+		MYLOG("MODW", "Num of coils %d", coil_data.num_coils);
 
-	telegram.u8id = coil_data.dev_addr;			 // slave address
-	telegram.u8fct = MB_FC_WRITE_MULTIPLE_COILS; // function code (this one is coil write)
-	telegram.u16RegAdd = 0;						 // start address in slave
-	telegram.u16CoilsNo = coil_data.num_coils;	 // number of elements (coils or registers) to write
-	telegram.au16reg = coils_n_regs.data;		 // pointer to a memory array in the Arduino
+		// Reset the register
+		coils_n_regs.data[0] = 0;
 
-	master.query(telegram); // send query (only once)
+		// Check number of coils to write
+		if (coil_data.num_coils > 16)
+		{
+			MYLOG("MODW", "Too many coils requested to write. Only max 16 are allowed");
+			return;
+		}
+		// Prepare coils STATUS
+		uint8_t coil_shift = 8;
+		for (int idx = 0; idx < coil_data.num_coils; idx++)
+		{
+			MYLOG("MODW", "Coil %d %s %d", idx, coil_data.coils[idx] == 0 ? "off" : "on", coil_data.coils[idx] << coil_shift);
+			coils_n_regs.data[0] |= coil_data.coils[idx] << coil_shift;
+			MYLOG("MODW", "Coil data %02X", coils_n_regs.data[0]);
+			coil_shift++;
+			if (coil_shift == 16)
+			{
+				coil_shift = 0;
+			}
+		}
+		MYLOG("MODW", "Coil data %02X", coils_n_regs.data[0]);
+
+		telegram.u8id = coil_data.dev_addr;			 // slave address
+		telegram.u8fct = MB_FC_WRITE_MULTIPLE_COILS; // function code (this one is coil write)
+		telegram.u16RegAdd = 0;						 // start address in slave
+		telegram.u16CoilsNo = coil_data.num_coils;	 // number of coils to write
+		telegram.au16reg = coils_n_regs.data;		 // pointer to a memory array in the Arduino
+	}
+	// Send query (only once)
+	master.query(telegram);
 
 	time_t start_poll = millis();
 
@@ -547,6 +651,7 @@ void modbus_write_coil(void *)
 		}
 	}
 
+	// Shut down sensors and communication for lowest power consumption
 	digitalWrite(WB_IO2, LOW);
 	Serial1.end();
 	udrv_serial_deinit(SERIAL_UART1);
@@ -564,8 +669,7 @@ void loop(void)
 
 /**
  * @brief Send the data packet that was prepared in
- * Cayenne LPP format by the different sensor and location
- * aqcuision functions
+ * Cayenne LPP format by the different sensor functions
  *
  */
 void send_packet(void)
