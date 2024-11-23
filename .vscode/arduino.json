@@ -7,7 +7,7 @@
     "buildPreferences": [
         [
             "compiler.cpp.extra_flags",
-            "-DMY_DEBUG=0 -DSW_VERSION_0=1 -DSW_VERSION_1=0 -DSW_VERSION_2=0"
+            "-DMY_DEBUG=1 -DSW_VERSION_0=1 -DSW_VERSION_1=0 -DSW_VERSION_2=0"
         ]
     ],
     "version": "1.0.0",

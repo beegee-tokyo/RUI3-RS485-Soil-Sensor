@@ -321,7 +321,7 @@ void setup()
 	// Initialize the Modbus interface on Serial1 (connected to RAK5802 RS485 module)
 	pinMode(WB_IO2, OUTPUT);
 	digitalWrite(WB_IO2, HIGH);
-	Serial1.begin(4800); // baud-rate at 19200
+	Serial1.begin(4800); // baud-rate at 4800
 	master.start();
 	master.setTimeOut(2000); // if there is no answer in 2000 ms, roll over
 
@@ -340,12 +340,15 @@ void setup()
 	if (api.lorawan.nwm.get() == 0)
 	{
 		digitalWrite(LED_BLUE, LOW);
-
+		MYLOG("SETUP", "P2P mode, start a reading");
 		modbus_start_sensor(NULL);
 	}
 	else
 	{
+		// Shut down 12V supply and RS485
 		digitalWrite(WB_IO2, LOW);
+		Serial1.end();
+		udrv_serial_deinit(SERIAL_UART1);
 	}
 
 	if (api.lorawan.nwm.get() == 1)
@@ -379,6 +382,7 @@ void setup()
 void modbus_start_sensor(void *)
 {
 	digitalWrite(WB_IO2, HIGH);
+	// Serial1.begin(4800);
 	digitalWrite(LED_BLUE, HIGH);
 	MYLOG("MODR", "Power-up sensor");
 	api.system.timer.start(RAK_TIMER_2, SENSOR_POWER_TIME, NULL); // 600000 ms = 600 seconds = 10 minutes power on
@@ -386,6 +390,8 @@ void modbus_start_sensor(void *)
 
 void modbus_read_register(void *)
 {
+	Serial1.begin(4800);
+	delay(500);
 	MYLOG("MODR", "Send read request over ModBus");
 	coils_n_regs.data[0] = coils_n_regs.data[1] = coils_n_regs.data[2] = coils_n_regs.data[3] = coils_n_regs.data[4] = 0xFFFF;
 	coils_n_regs.data[5] = coils_n_regs.data[6] = coils_n_regs.data[7] = coils_n_regs.data[8] = 0xFFFF;
@@ -489,6 +495,8 @@ void modbus_read_register(void *)
 		send_packet();
 	}
 	digitalWrite(WB_IO2, LOW);
+	Serial1.end();
+	udrv_serial_deinit(SERIAL_UART1);
 	digitalWrite(LED_BLUE, LOW);
 }
 
@@ -496,6 +504,7 @@ void modbus_write_coil(void *)
 {
 	// Coils are in 16 bit register in form of 7-0, 15-8
 	digitalWrite(WB_IO2, HIGH);
+	Serial1.begin(4800);
 	MYLOG("MODW", "Send write coil request over ModBus");
 
 	MYLOG("MODW", "Num of coils %d", coil_data.num_coils);
@@ -539,6 +548,8 @@ void modbus_write_coil(void *)
 	}
 
 	digitalWrite(WB_IO2, LOW);
+	Serial1.end();
+	udrv_serial_deinit(SERIAL_UART1);
 }
 
 /**

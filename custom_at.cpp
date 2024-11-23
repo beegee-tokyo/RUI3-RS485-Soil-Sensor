@@ -83,7 +83,7 @@ int interval_send_handler(SERIAL_PORT port, char *cmd, stParam *param)
 
 		uint32_t new_send_freq = strtoul(param->argv[0], NULL, 10);
 
-		MYLOG("AT_CMD", "Requested interval %ld s", new_send_freq);
+		// MYLOG("AT_CMD", "Requested interval %ld s", new_send_freq);
 
 		if ((new_send_freq * 1000) < SENSOR_POWER_TIME * 2)
 		{
@@ -92,7 +92,7 @@ int interval_send_handler(SERIAL_PORT port, char *cmd, stParam *param)
 
 		custom_parameters.send_interval = new_send_freq * 1000;
 
-		MYLOG("AT_CMD", "New interval %ld ms", custom_parameters.send_interval);
+		// MYLOG("AT_CMD", "New interval %ld ms", custom_parameters.send_interval);
 		// Stop the timer
 		api.system.timer.stop(RAK_TIMER_0);
 		if (custom_parameters.send_interval != 0)
@@ -239,14 +239,14 @@ bool get_at_setting(void)
 	uint8_t *flash_value = (uint8_t *)&temp_params.valid_flag;
 	if (!api.system.flash.get(0, flash_value, sizeof(custom_param_s)))
 	{
-		MYLOG("AT_CMD", "Failed to read send interval from Flash");
+		// MYLOG("AT_CMD", "Failed to read send interval from Flash");
 		return false;
 	}
-	MYLOG("AT_CMD", "Got flag: %02X", temp_params.valid_flag);
-	MYLOG("AT_CMD", "Got send interval: %08X", temp_params.send_interval);
+	// MYLOG("AT_CMD", "Got flag: %02X", temp_params.valid_flag);
+	// MYLOG("AT_CMD", "Got send interval: %08X", temp_params.send_interval);
 	if (flash_value[0] != 0xAA)
 	{
-		MYLOG("AT_CMD", "No valid send interval found, set to default, read 0X%08X", temp_params.send_interval);
+		// MYLOG("AT_CMD", "No valid send interval found, set to default, read 0X%08X", temp_params.send_interval);
 		custom_parameters.valid_flag = 0xAA;
 		custom_parameters.send_interval = 0;
 		save_at_setting();
@@ -254,7 +254,7 @@ bool get_at_setting(void)
 	}
 	custom_parameters.send_interval = temp_params.send_interval;
 
-	MYLOG("AT_CMD", "Send interval found %ld", custom_parameters.send_interval);
+	// MYLOG("AT_CMD", "Send interval found %ld", custom_parameters.send_interval);
 	return true;
 }
 
@@ -270,8 +270,8 @@ bool save_at_setting(void)
 
 	bool wr_result = false;
 
-	MYLOG("AT_CMD", "Writing flag: %02X", custom_parameters.valid_flag);
-	MYLOG("AT_CMD", "Writing send interval 0X%08X ", custom_parameters.send_interval);
+	// MYLOG("AT_CMD", "Writing flag: %02X", custom_parameters.valid_flag);
+	// MYLOG("AT_CMD", "Writing send interval 0X%08X ", custom_parameters.send_interval);
 	wr_result = api.system.flash.set(0, flash_value, sizeof(custom_param_s));
 	if (!wr_result)
 	{
