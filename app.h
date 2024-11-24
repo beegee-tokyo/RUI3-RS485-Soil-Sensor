@@ -52,15 +52,15 @@
 struct sensor_data_s
 {
 	// int16_t coils;
-	int16_t moisture;
-	int16_t temperature;
-	int16_t conductivity;
-	int16_t ph_value;
-	int16_t nitrogen;
-	int16_t phosphorus;
-	int16_t potassium;
-	int16_t salinity;
-	int16_t tds;
+	int16_t reg_1;
+	int16_t reg_2;
+	int16_t reg_3;
+	int16_t reg_4;
+	int16_t reg_5;
+	int16_t reg_6;
+	int16_t reg_7;
+	int16_t reg_8;
+	int16_t reg_9;
 };
 
 // Modbus stuff

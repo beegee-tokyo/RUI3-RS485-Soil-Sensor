@@ -2,14 +2,72 @@
 | <img src="./assets/RAK-Whirls.png" alt="RAKWireless"> | <img src="./assets/rakstar.jpg" alt="RAKstar" > |    
 | :-: | :-: |    
 
-Example for a RS485 soil sensor using RAKwireless RUI3 on a RAK3172
+Example for a RS485 soil sensor using RAKwireless RUI3 on a RAK3172.
+
+Tested with the "No-Name" VEM SEE SN-3002-TR-ECTHNPKKPH-N01 sensor.
+Code prepared for the GEMHO 7in1 Soil Sensor with RS485, but not tested.
 
 # Components
 
 ----
 
 ## Soil sensor
-- VMSEE SN-3002-TR-ECTHNPKKPH-N01, translated datasheet is in [assets](./assets/SoilSensor-7-values-datasheet_en.docx)
+
+### VEM SEE SN-3002-TR-ECTHNPKKPH-N01, translated datasheet is in [assets](./assets/SoilSensor-7-values-datasheet_en.docx)
+
+#### ⚠️ IMPORTANT ⚠️ Requires to set #define VEMSEE
+
+Sensor works by default with 4800 Baud
+
+VEM SEE SN-3002-TR-ECTHNPKKPH-N01 Soil Sensor register setup
+| Address | Multiplier | Register content                              |
+| ------- | ---------- | --------------------------------------------- |
+| 0x0000  | /10        | Moisture                                      | 
+| 0x0001  | /10        | Temperature                                   | 
+| 0x0002  | *1         | Conductivity                                  | 
+| 0x0003  | /10        | pH                                            | 
+| 0x0004  | *1         | Nitrogen content (temporary)                  | 
+| 0x0005  | *1         | Phosphorus content (temporary)                | 
+| 0x0006  | *1         | Potassium content (temporary)                 | 
+| 0x0007  | *1         | Salinity                                      | 
+| 0x0008  | *1         | TDS (for reference ?????)                     | 
+| 0x0022  | *1         | Temperature coefficient of conductivity       | 
+| 0x0023  | *1         | TDS coefficient                               | 
+| 0x0050  | *1         | Temperature calibration value                 | 
+| 0x0051  | *1         | Mositure content calibration value            | 
+| 0x0052  | *1         | Conductivity calibration value                | 
+| 0x0053  | *1         | pH calibration value                          | 
+| 0x04e8  | *1         | Nitrogen content coefficient MSB (temporary)  | 
+| 0x04e9  | *1         | Nitrogen content coefficient LSB (temporary)  | 
+| 0x04ea  | *1         | Nitrogen deviation (temporary)                | 
+| 0x04f2  | *1         | Phosphorus coefficient MSB (temporary)        | 
+| 0x04f3  | *1         | Phosphorus coefficient LSB (temporary)        | 
+| 0x04f4  | *1         | Phosphorus deviation (temporary)              | 
+| 0x04fc  | *1         | Potassium content coefficient MSB (temporary) | 
+| 0x04fd  | *1         | Potassium content coefficient LSB (temporary) | 
+| 0x04fe  | *1         | Potassium deviation (temporary)               | 
+| 0x07d0  | *1         | Device address                                | 
+| 0x07d1  | *1         | Baud Rate                                     | 
+
+----
+
+### GEMHO 7in1 Soil Sensor with RS485
+
+#### ⚠️ IMPORTANT ⚠️ Requires to set #define GEMHO
+
+Sensor works by default with 9600 Baud
+
+GEMHO 7in1 Soil Sensor with RS485 register setup
+| Address | Multiplier | Register content                              |
+| ------- | ---------- | --------------------------------------------- |
+| 0x0006  | /100       | Temperature                                   | 
+| 0x0007  | /100       | Moisture                                      | 
+| 0x0008  | *1         | Conductivity                                  | 
+| 0x0009  | /100       | pH                                            | 
+| 0x000F  | *1         | Device address                                | 
+| 0x001E  | *1         | Nitrogen content (temporary)                  | 
+| 0x001F  | *1         | Phosphorus content (temporary)                | 
+| 0x0020  | *1         | Potassium content (temporary)                 | 
 
 ----
 
@@ -32,7 +90,7 @@ Antenna used is [Blade Antenna](https://docs.rakwireless.com/Product-Categories/
 
 <center><img src="./assets/assembly.jpg" width="35%" alt="Device">&nbsp&nbsp&nbsp&nbsp<img src="./assets/sensor.jpg" height="50%" width="35%" alt="Sensor"></center>
 
-#### ⚠️ IMPORTANT ⚠️  
+#### ⚠️ IMPORTANT ⚠️    
 RAK19002 12V booster _**must**_ be installed in the Sensor Slot B    
 
 ----

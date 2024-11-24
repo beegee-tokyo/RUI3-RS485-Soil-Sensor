@@ -9,40 +9,12 @@
  *
  */
 
-/** Soil Sensor register setup:
- * 0x0000	/10		Moisture
- * 0x0001 	/10		Temperature
- * 0x0002 	*1		Conductivity
- * 0x0003 	/10		pH
- * 0x0004 	???		Nitrogen content (temporary)
- * 0x0005 	???		Phosphorus content (temporary)
- * 0x0006 	???		Potassium content (temporary)
- * 0x0007 	???		Salinity
- * 0x0008 	???		TDS (for reference ?????)
- *
- * 0x0022 	???		Temperature coefficient of conductivity
- * 0x0023 	???		TDS coefficient
- *
- * 0x0050 	???		Temperature calibration value
- * 0x0051 	???		Mositure content calibration value
- * 0x0052 	???		Conductivity calibration value
- * 0x0053 	???		pH calibration value
- *
- * 0x04e8 	???		Nitrogen content coefficient MSB (temporary)
- * 0x04e9 	???		Nitrogen content coefficient LSB (temporary)
- * 0x04ea 	???		Nitrogen deviation (temporary)
- * 0x04f2 	???		Phosphorus coefficient MSB (temporary)
- * 0x04f3 	???		Phosphorus coefficient LSB (temporary)
- * 0x04f4 	???		Phosphorus deviation (temporary)
- * 0x04fc 	???		Potassium content coefficient MSB (temporary)
- * 0x04fd 	???		Potassium content coefficient LSB (temporary)
- * 0x04fe 	???		Potassium deviation (temporary)
- *
- * 0x07d0 	???		Device address
- * 0x07d1 	???		Baud Rate
- */
-
 #include "app.h"
+
+// VEM SEE SN-3002-TR-ECTHNPKKPH-N01
+#define VEMSEE
+// GEMHO 7in1 Soil Sensor with RS485
+// #define GEMHO
 
 /** Data array for modbus 9 registers */
 union coils_n_regs_u coils_n_regs = {0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -434,7 +406,6 @@ void setup()
 void modbus_start_sensor(void *)
 {
 	digitalWrite(WB_IO2, HIGH);
-	// Serial1.begin(4800);
 	digitalWrite(LED_BLUE, HIGH);
 	MYLOG("MODR", "Power-up sensor");
 	api.system.timer.start(RAK_TIMER_2, SENSOR_POWER_TIME, NULL); // 600000 ms = 600 seconds = 10 minutes power on
@@ -448,6 +419,9 @@ void modbus_start_sensor(void *)
  */
 void modbus_read_register(void *)
 {
+	time_t start_poll;
+	bool data_ready;
+#ifdef VEMSEE
 	Serial1.begin(4800);
 	delay(500);
 	MYLOG("MODR", "Send read request over ModBus");
@@ -464,8 +438,8 @@ void modbus_read_register(void *)
 	// Send query (only once)
 	master.query(telegram);
 
-	time_t start_poll = millis();
-	bool data_ready = false;
+	start_poll = millis();
+	data_ready = false;
 	// Wait for slave response for 5 seconds
 	while ((millis() - start_poll) < 5000)
 	{
@@ -485,15 +459,15 @@ void modbus_read_register(void *)
 			}
 			else
 			{
-				MYLOG("MODR", "Moisture = %.2f", (uint16_t)(coils_n_regs.sensor_data.moisture) / 10.0);
-				MYLOG("MODR", "Temperature = %.2f", coils_n_regs.sensor_data.temperature / 10.0);
-				MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.conductivity * 1.0);
-				MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.ph_value) / 10.0);
-				MYLOG("MODR", "Nitrogen = %.2f", (uint16_t)(coils_n_regs.sensor_data.nitrogen) * 1.0);
-				MYLOG("MODR", "Phosphorus = %.2f", (uint16_t)(coils_n_regs.sensor_data.phosphorus) * 1.0);
-				MYLOG("MODR", "Potassium = %.2f", (uint16_t)(coils_n_regs.sensor_data.potassium) * 1.0);
-				MYLOG("MODR", "Salinity = %.2f", (uint16_t)(coils_n_regs.sensor_data.salinity) * 1.0);
-				MYLOG("MODR", "TDS = %.2f", (uint16_t)(coils_n_regs.sensor_data.tds) * 1.0);
+				MYLOG("MODR", "Moisture = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_1) / 10.0);
+				MYLOG("MODR", "Temperature = %.2f", coils_n_regs.sensor_data.reg_2 / 10.0);
+				MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.reg_3 * 1.0);
+				MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_4) / 10.0);
+				MYLOG("MODR", "Nitrogen = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_5) * 1.0);
+				MYLOG("MODR", "Phosphorus = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_6) * 1.0);
+				MYLOG("MODR", "Potassium = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_7) * 1.0);
+				MYLOG("MODR", "Salinity = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_8) * 1.0);
+				MYLOG("MODR", "TDS = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_9) * 1.0);
 
 				data_ready = true;
 
@@ -501,31 +475,31 @@ void modbus_read_register(void *)
 				g_solution_data.reset();
 
 				// Add temperature level to payload
-				g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.temperature / 10.0);
+				g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 10.0);
 
 				// Add moisture level to payload
-				g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, (uint16_t)(coils_n_regs.sensor_data.moisture) / 10.0);
+				g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, (uint16_t)(coils_n_regs.sensor_data.reg_1) / 10.0);
 
 				// Add conductivity value to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_COND, (uint16_t)(coils_n_regs.sensor_data.conductivity));
+				g_solution_data.addConcentration(LPP_CHANNEL_COND, (uint16_t)(coils_n_regs.sensor_data.reg_3));
 
 				// Add pH value to payload
-				g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.ph_value) / 10);
+				g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.reg_4) / 10);
 
 				// Add nitrogen level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_NITRO, (uint16_t)(coils_n_regs.sensor_data.nitrogen));
+				g_solution_data.addConcentration(LPP_CHANNEL_NITRO, (uint16_t)(coils_n_regs.sensor_data.reg_5));
 
 				// Add phosphorus level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_PHOS, (uint16_t)(coils_n_regs.sensor_data.phosphorus));
+				g_solution_data.addConcentration(LPP_CHANNEL_PHOS, (uint16_t)(coils_n_regs.sensor_data.reg_6));
 
 				// Addf potassium level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_POTA, (uint16_t)(coils_n_regs.sensor_data.potassium));
+				g_solution_data.addConcentration(LPP_CHANNEL_POTA, (uint16_t)(coils_n_regs.sensor_data.reg_7));
 
 				// Add salinity level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_SALIN, (uint16_t)(coils_n_regs.sensor_data.salinity));
+				g_solution_data.addConcentration(LPP_CHANNEL_SALIN, (uint16_t)(coils_n_regs.sensor_data.reg_8));
 
 				// Add TDS value to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_TDS, (uint16_t)(coils_n_regs.sensor_data.tds));
+				g_solution_data.addConcentration(LPP_CHANNEL_TDS, (uint16_t)(coils_n_regs.sensor_data.reg_9));
 
 				float battery_reading = 0.0;
 				// Add battery voltage
@@ -542,6 +516,135 @@ void modbus_read_register(void *)
 			}
 		}
 	}
+#endif
+
+#ifdef GEMHO
+	Serial1.begin(4800);
+	delay(500);
+	MYLOG("MODR", "Send read request over ModBus");
+	// Clear data structure
+	coils_n_regs.data[0] = coils_n_regs.data[1] = coils_n_regs.data[2] = coils_n_regs.data[3] = coils_n_regs.data[4] = 0xFFFF;
+	coils_n_regs.data[5] = coils_n_regs.data[6] = coils_n_regs.data[7] = coils_n_regs.data[8] = 0xFFFF;
+
+	// Setup read command for T, H, E and pH
+	telegram.u8id = 1;					   // slave address
+	telegram.u8fct = MB_FC_READ_REGISTERS; // function code (this one is registers read)
+	telegram.u16RegAdd = 6;				   // start address in slave
+	telegram.u16CoilsNo = 4;			   // number of elements (coils or registers) to read
+	telegram.au16reg = coils_n_regs.data;  // pointer to a memory array in the Arduino
+
+	// Send query (only once)
+	master.query(telegram);
+
+	start_poll = millis();
+	data_ready = false;
+	// Wait for slave response for 5 seconds
+	while ((millis() - start_poll) < 5000)
+	{
+		// Check incoming messages
+		master.poll();
+		// Status idle, either data was received or the slave response timed out
+		if (master.getState() == COM_IDLE)
+		{
+			// Check if register structure has changed
+			if ((coils_n_regs.data[0] == 0xFFFF) && (coils_n_regs.data[1] == 0xFFFF) && (coils_n_regs.data[2] == 0xFFFF) && (coils_n_regs.data[3] == 0xFFFF))
+			{
+				MYLOG("MODR", "No data received");
+				MYLOG("MODR", "%04X %04X %04X %04X",
+					  coils_n_regs.data[0], coils_n_regs.data[1], coils_n_regs.data[2], coils_n_regs.data[3]);
+				break;
+			}
+			else
+			{
+				MYLOG("MODR", "Moisture = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_2) / 100.0);
+				MYLOG("MODR", "Temperature = %.2f", coils_n_regs.sensor_data.reg_1 / 100.0);
+				MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.reg_3);
+				MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_4) / 100.0);
+				data_ready = true;
+
+				// Clear payload
+				g_solution_data.reset();
+
+				// Add temperature level to payload
+				g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 100);
+
+				// Add moisture level to payload
+				g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, (uint16_t)(coils_n_regs.sensor_data.reg_1) / 100);
+
+				// Add conductivity value to payload
+				g_solution_data.addConcentration(LPP_CHANNEL_COND, (uint16_t)(coils_n_regs.sensor_data.reg_3));
+
+				// Add pH value to payload
+				g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.reg_4) / 100);
+
+				float battery_reading = 0.0;
+				// Add battery voltage
+				for (int i = 0; i < 10; i++)
+				{
+					battery_reading += api.system.bat.get(); // get battery voltage
+				}
+
+				battery_reading = battery_reading / 10;
+
+				g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
+
+				break;
+			}
+		}
+	}
+
+	// Clear data structure
+	coils_n_regs.data[0] = coils_n_regs.data[1] = coils_n_regs.data[2] = 0xFFFF;
+
+	// Setup read command for N, Ph, Po
+	telegram.u8id = 1;					   // slave address
+	telegram.u8fct = MB_FC_READ_REGISTERS; // function code (this one is registers read)
+	telegram.u16RegAdd = 0x1e;			   // start address in slave
+	telegram.u16CoilsNo = 3;			   // number of elements (coils or registers) to read
+	telegram.au16reg = coils_n_regs.data;  // pointer to a memory array in the Arduino
+
+	// Send query (only once)
+	master.query(telegram);
+
+	start_poll = millis();
+	// Wait for slave response for 5 seconds
+	while ((millis() - start_poll) < 5000)
+	{
+		// Check incoming messages
+		master.poll();
+		// Status idle, either data was received or the slave response timed out
+		if (master.getState() == COM_IDLE)
+		{
+			// Check if register structure has changed
+			if ((coils_n_regs.data[0] == 0xFFFF) && (coils_n_regs.data[1] == 0xFFFF) && (coils_n_regs.data[2] == 0xFFFF))
+			{
+				MYLOG("MODR", "No data received");
+				MYLOG("MODR", "%04X %04X %04X",
+					  coils_n_regs.data[0], coils_n_regs.data[1], coils_n_regs.data[2]);
+				data_ready = false;
+				break;
+			}
+			else
+			{
+				MYLOG("MODR", "Nitrogen = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_1));
+				MYLOG("MODR", "Phosphorus = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_2));
+				MYLOG("MODR", "Potatium = %.1f", (uint16_t)(coils_n_regs.sensor_data.reg_3));
+				data_ready = true;
+
+				// Add nitrogen level to payload
+				g_solution_data.addConcentration(LPP_CHANNEL_NITRO, (uint16_t)(coils_n_regs.sensor_data.reg_1));
+
+				// Add phosphorus level to payload
+				g_solution_data.addConcentration(LPP_CHANNEL_PHOS, (uint16_t)(coils_n_regs.sensor_data.reg_2));
+
+				// Addf potassium level to payload
+				g_solution_data.addConcentration(LPP_CHANNEL_POTA, (uint16_t)(coils_n_regs.sensor_data.reg_3));
+
+				break;
+			}
+		}
+	}
+#endif
 
 	if (data_ready)
 	{
