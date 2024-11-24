@@ -485,15 +485,15 @@ void modbus_read_register(void *)
 			}
 			else
 			{
-				MYLOG("MODR", "Moisture = %.2f", coils_n_regs.sensor_data.moisture / 10.0);
+				MYLOG("MODR", "Moisture = %.2f", (uint16_t)(coils_n_regs.sensor_data.moisture) / 10.0);
 				MYLOG("MODR", "Temperature = %.2f", coils_n_regs.sensor_data.temperature / 10.0);
-				MYLOG("MODR", "Conductivity = %.1f", coils_n_regs.sensor_data.conductivity * 1.0);
-				MYLOG("MODR", "pH = %.2f", coils_n_regs.sensor_data.ph_value / 10.0);
-				MYLOG("MODR", "Nitrogen = %.2f", coils_n_regs.sensor_data.nitrogen * 1.0);
-				MYLOG("MODR", "Phosphorus = %.2f", coils_n_regs.sensor_data.phosphorus * 1.0);
-				MYLOG("MODR", "Potassium = %.2f", coils_n_regs.sensor_data.potassium * 1.0);
-				MYLOG("MODR", "Salinity = %.2f", coils_n_regs.sensor_data.salinity * 1.0);
-				MYLOG("MODR", "TDS = %.2f", coils_n_regs.sensor_data.tds * 1.0);
+				MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.conductivity * 1.0);
+				MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.ph_value) / 10.0);
+				MYLOG("MODR", "Nitrogen = %.2f", (uint16_t)(coils_n_regs.sensor_data.nitrogen) * 1.0);
+				MYLOG("MODR", "Phosphorus = %.2f", (uint16_t)(coils_n_regs.sensor_data.phosphorus) * 1.0);
+				MYLOG("MODR", "Potassium = %.2f", (uint16_t)(coils_n_regs.sensor_data.potassium) * 1.0);
+				MYLOG("MODR", "Salinity = %.2f", (uint16_t)(coils_n_regs.sensor_data.salinity) * 1.0);
+				MYLOG("MODR", "TDS = %.2f", (uint16_t)(coils_n_regs.sensor_data.tds) * 1.0);
 
 				data_ready = true;
 
@@ -504,28 +504,28 @@ void modbus_read_register(void *)
 				g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.temperature / 10.0);
 
 				// Add moisture level to payload
-				g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, coils_n_regs.sensor_data.moisture / 10.0);
+				g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, (uint16_t)(coils_n_regs.sensor_data.moisture) / 10.0);
 
 				// Add conductivity value to payload
-				g_solution_data.addAnalogInput(LPP_CHANNEL_COND, coils_n_regs.sensor_data.conductivity * 1.0);
+				g_solution_data.addConcentration(LPP_CHANNEL_COND, (uint16_t)(coils_n_regs.sensor_data.conductivity));
 
 				// Add pH value to payload
-				g_solution_data.addAnalogInput(LPP_CHANNEL_PH, coils_n_regs.sensor_data.ph_value / 10.0);
+				g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.ph_value) / 10);
 
 				// Add nitrogen level to payload
-				g_solution_data.addAnalogInput(LPP_CHANNEL_NITRO, coils_n_regs.sensor_data.nitrogen * 1.0);
+				g_solution_data.addConcentration(LPP_CHANNEL_NITRO, (uint16_t)(coils_n_regs.sensor_data.nitrogen));
 
 				// Add phosphorus level to payload
-				g_solution_data.addAnalogInput(LPP_CHANNEL_PHOS, coils_n_regs.sensor_data.phosphorus * 1.0);
+				g_solution_data.addConcentration(LPP_CHANNEL_PHOS, (uint16_t)(coils_n_regs.sensor_data.phosphorus));
 
 				// Addf potassium level to payload
-				g_solution_data.addAnalogInput(LPP_CHANNEL_POTA, coils_n_regs.sensor_data.potassium * 1.0);
+				g_solution_data.addConcentration(LPP_CHANNEL_POTA, (uint16_t)(coils_n_regs.sensor_data.potassium));
 
 				// Add salinity level to payload
-				g_solution_data.addAnalogInput(LPP_CHANNEL_SALIN, coils_n_regs.sensor_data.salinity * 1.0);
+				g_solution_data.addConcentration(LPP_CHANNEL_SALIN, (uint16_t)(coils_n_regs.sensor_data.salinity));
 
 				// Add TDS value to payload
-				g_solution_data.addAnalogInput(LPP_CHANNEL_TDS, coils_n_regs.sensor_data.tds * 1.0);
+				g_solution_data.addConcentration(LPP_CHANNEL_TDS, (uint16_t)(coils_n_regs.sensor_data.tds));
 
 				float battery_reading = 0.0;
 				// Add battery voltage
