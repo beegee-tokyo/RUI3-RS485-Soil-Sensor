@@ -4,8 +4,8 @@
 
 Example for a RS485 soil sensor using RAKwireless RUI3 on a RAK3172.
 
-Tested with the "No-Name" VEM SEE SN-3002-TR-ECTHNPKKPH-N01 sensor.
-Code prepared for the GEMHO 7in1 Soil Sensor with RS485, but not tested.
+Tested with the "No-Name" VEM SEE SN-3002-TR-ECTHNPKKPH-N01 sensor.    
+Code is prepared for the GEMHO 7in1 Soil Sensor with RS485, but not tested.
 
 # Components
 
@@ -51,7 +51,7 @@ VEM SEE SN-3002-TR-ECTHNPKKPH-N01 Soil Sensor register setup
 
 ----
 
-### GEMHO 7in1 Soil Sensor with RS485
+### GEMHO 7in1 Soil Sensor with RS485, datasheet is in [assets](./assets/Gemho RS485 Type Soil 7in1 Sensor.pdf)
 
 #### ⚠️ IMPORTANT ⚠️ Requires to set #define GEMHO
 
@@ -95,7 +95,7 @@ RAK19002 12V booster _**must**_ be installed in the Sensor Slot B
 
 ----
 
-# Wiring diagram
+# Modbus Wiring diagram
 
 <center><img src="./assets/wiring.png" alt="Wiring Diagram"></center>
 
@@ -152,3 +152,249 @@ if MB_FC_WRITE_REGISTER
 if MB_FC_WRITE_MULTIPLE_REGISTERS    
 	`v1` and `v2` are the 16bit value to write to the register, `nn` arrays of `v1` and `v2` are expected    
    
+----
+
+# Visualization of the Sensor Data
+
+To visualize the sensor data, the following (free) extensions are used:
+
+- [InfluxDB](https://www.influxdata.com/). Two options, (1) Use the InfluxDB Cloud Serverless or (2) installing InfluxDB on your own server.  I used (2) and run InfluxDB on my VPS.
+- [Grafana](https://grafana.com/). Two options, (1) using the Grafana Cloud or (2) installing Grafana on your own server. I used (2) and run Grafana on my VPS.
+- InfluxDB integration on the LoRaWAN server (I use Chirpstack V4). My Chirpstack installation is as well on my VPS.
+
+----
+
+## Setup 
+
+#### ⚠️ INFO ⚠️
+The complete system is setup on a VPS with [Docker](https://www.docker.com/) containers. All required Docker containers are installed with a custom Docker YAML file and for maintaining of the containers I use [Portainer](https://www.portainer.io/), a Docker management tool.    
+This includes the [Chirpstack V4](https://www.chirpstack.io/) LoRaWAN server, InfluxDB and Grafana.
+
+----
+
+### Register the sensor nodes in the LoRaWAN server
+
+_**No detailed instructions for this part, these steps are common steps to connect sensor nodes to a LoRaWAN server**_
+
+(1) Setup the LoRaWAN server and connect the gateway(s) to it. Make sure both LoRaWAN server and the gateway(s) are setup to the same LoRaWAN region.    
+(2) Setup an application on the LoRaWAN server    
+(3) Setup the sensor nodes in the application with their DevEUI, AppEUI and AppKey (if OTAA is used) or with their DevAddress, AppSKey and NwSKey (if ABP is used)    
+(4) Check if the sensor data are received by the application in the LoRaWAN server    
+
+<center><img src="./assets/sensor-data-in-lns.png" alt="LNS Events"></center>
+
+----
+
+### Setup the Codec in Chirpstack
+
+To receive the data in the influxDB database, a payload decoder is required in Chirpstack. Payload decoders are setup in the _**Device Profiles**_ in Chirpstack. In the Chirpstack web UI switch to the _**Device Profiles**_ and select _**Codecs**_.    
+
+<center><img src="./assets/chirpstack-add-decoder.png" alt="Add payload decoder in Chirpstack"></center>
+
+Open the _**Codec**_ tab. By default the Payload codec is set to _**None**_. Change it to _**JavaScript functions**_
+
+<center><img src="./assets/chirpstack-change-codec-type.png" alt="Add payload decoder in Chirpstack"></center>
+
+RAKwireless has a ready to use JavaScript decoder for Chirpstack. You can get it from the [RAKwireless_Standardized_Payload](https://github.com/RAKWireless/RAKwireless_Standardized_Payload/blob/main/RAKwireless_Standardized_Payload.js) Github repository.     
+
+<center><img src="./assets/chirpstack-get-decoder.png" alt="Get payload decoder for Chirpstack"></center>
+
+Use the _**Raw**_ button to see the Javascript as plain text. Copy the complete Javascript code and paste it into the Chirpstack _**Codec functions**_ text field.    
+
+<center><img src="./assets/chirpstack-paste-codec.png" alt="Get payload decoder for Chirpstack"></center>
+
+To check that the decoder is working, go back to the device in Chirpstack and select _**Events**_. This will show the received data.    
+Click on the _**up**_ button of a received packet and the decoded payload will be shown:    
+
+<center><img src="./assets/chirpstack-check-decoder.png" alt="Get payload decoder for Chirpstack"></center>
+
+----
+
+### Installation of InfluxDB and Grafana
+
+The installation of InfluxDB and Grafana is done through the Docker YAML file.    
+Important are the local IP addresses of the two applications, which can be obtained through the Portainer management tool.    
+
+<center><img src="./assets/portainer-docker-management.png" alt="Portainer"></center>
+
+----
+
+### Setup the InfluxDB database
+
+In InfluxDB web UI, create an access token to allow access.
+
+(1) Open the _**Load Data**_ menu and select _**API Tokens**_
+
+<center><img src="./assets/influxdb-token-1.png" alt="Portainer"></center>
+
+(2) Create two tokens using the _**GENERATE API TOKEN**_ button, one for Chirpstack and one for Grafana. 
+
+<center><img src="./assets/influxdb-token-2.png" alt="Portainer"></center>
+
+These tokens will be required in the next steps!
+
+#### ⚠️ IMPORTANT ⚠️
+_**Make sure to copy the tokens into a safe place. They can be only read during the creation of the tokens.**_
+
+Create an organization and a bucket for the sensor data.     
+
+(3) Create organization and a bucket
+
+<center><img src="./assets/influxdb-organisation-1.png" alt="influxDB create new organization"></center>
+
+Here we use _**RAKwireless**_ for both the organization and the bucket.    
+
+<center><img src="./assets/influxdb-organisation-2.png" alt="influxDB create organization and data bucket"></center>
+
+----
+
+### Setup the InfluxDB integration in Chirpstack
+
+In the Chirpstack web UI, open the application and select the _**Integrations**_ tab:
+
+<center><img src="./assets/chirpstack-integrations.png" alt="Chirpstack Integrations"></center>
+
+Then fill out the connection details to the InfluxDB database.     
+- In this installation influxDB version 2 is used.      
+- The API endpoint is the IP address of the influxDB docker instance we got from Portainer.    
+- Organization and Bucket are the ones we created in influxDB
+- Token is the access token we created in influxDB
+
+<center><img src="./assets/chirpstack-influxdb-setup.png" alt="Chirpstack Integrations"></center>
+
+----
+
+### Setup Grafana
+
+In the Grafana web UI, open _**Connections**_, then _**Add new connection**_to setup the connection to the influxDB database.    
+
+<center><img src="./assets/grafana-connection-1.png" alt="Grafana Setup Connection"></center>
+
+Select InfluxDB as new connection.    
+
+<center><img src="./assets/grafana-connection-2.png" alt="Grafana influxDB Connection"></center>
+
+Setup the connection using the IP address and token obtained earlier    
+
+<center><img src="./assets/grafana-connection-3.png" alt="Grafana influxDB Connection"></center>
+
+- User name is the influxDB organisation user
+- Password is the influxDB organisation password
+- Organization name is the organisation setup in influxDB
+- Token is the toke created in influxDB for the Grafana access
+- Default bucket is the bucket created in influxDB
+
+<center><img src="./assets/grafana-connection-4.png" alt="Grafana influxDB Connection"></center>
+
+Use the _**Save & test**_ button to check if Grafana can access the database.    
+
+----
+
+### Check the data is arriving in the database
+
+Open the influxDB web UI and open the _**Data Explorer**_.         
+Select the correct bucket.
+The easiest way to find the data is to use soil sensors **DevEUI** as the first filter.     
+Then use **_measurement** as the second filter. You will see now all the data that was received from the soil sensor.
+
+<center><img src="./assets/influxdb-select-device-data.png" alt="influxDB check device data"></center>
+
+As you can see, there are many entries. Each entries name has the sensor number at the end we assigned in the application code.      
+```cpp
+// Cayenne LPP Channel numbers per sensor value
+#define LPP_CHANNEL_BATT 1 // Base Board
+#define LPP_CHANNEL_MOIST 2
+#define LPP_CHANNEL_TEMP 3
+#define LPP_CHANNEL_COND 4
+#define LPP_CHANNEL_PH 5
+#define LPP_CHANNEL_NITRO 6
+#define LPP_CHANNEL_PHOS 7
+#define LPP_CHANNEL_POTA 8
+#define LPP_CHANNEL_SALIN 9
+#define LPP_CHANNEL_TDS 10
+```
+
+For example:     
+> _**`device_frmpayload_data_temperature_3`**_     
+
+refers to the soil temperature
+```cpp
+// Add temperature level to payload
+g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 10.0);
+```
+
+Once _**`device_frmpayload_data_temperature_3`**_ is selected, add one more filter with _**`value`**_ to get the temperature values from the database query. Then push the _**SUBMIT**_ button. The graph will show the recorded temperature measurements.     
+
+<center><img src="./assets/influxdb-display-data.png" alt="Soil temperature data in influxDB"></center>
+
+#### ⚠️ TIP ⚠️
+influxDB Data Explorer gives the option to see the query as Flux query. This can be directly used in Grafana to collect the data from the influxDB database.     
+
+Push the _**SCRIPT EDITOR**_ button to see the Flux query.      
+
+<center><img src="./assets/influxdb-get-flux-query.png" alt="influxDB - Get Flux query"></center>
+
+Copy and save the Flux Query, it will be used in the Grafana dashboard later.     
+
+----
+
+### Setup Grafana Dashboard
+
+Open the Grafana web UI and go to _**Home**_ => _**Dashboards**_. Then click on the _**New**_ button and select _**New dashboard**_.    
+
+<center><img src="./assets/grafana-new-dashboard.png" alt="Create new Dasboard in Grafana"></center>
+
+On the next window select the option to _**Add visualization**_
+
+<center><img src="./assets/grafana-new-visualization.png" alt="Create new Visualization"></center>
+
+Then select influxdb as the data source.     
+
+<center><img src="./assets/grafana-select-datasource.png" alt="Select data source"></center>
+
+A new window with the visualization details will be shown.    
+Take the Flux query copied from influxDB DataExplorer earlier and copy it into the query field.
+
+<center><img src="./assets/grafana-copy-flux-query.png" alt="Copy the Flux query"></center>
+
+There are many options to change how the data will be presented. Here only the _**Panel Title**_ is changed to **Soil Temperature**. The Grafana documentation explains the other options.    
+
+<center><img src="./assets/grafana-set-panel-title.png" alt="Check received data"></center>
+
+Push the _**Apply**_ button to add the visualization to the new Dashboard.
+
+<center><img src="./assets/grafana-apply-visualization.png" alt="Apply visualization to Dashboard"></center>
+
+Now the panel with the soil temperature is shown in the dashboard.    
+
+<center><img src="./assets/grafana-soil-temperature.png" alt="Visualization on Dashboard"></center>
+
+To add the other sensor values, there are two ways:    
+- use the _**Add**_ => _**Visualization**_ option from the top menu and repeat the above steps for the new sensor value
+<center><img src="./assets/grafana-add-next-visualization.png" alt="Add another visualization to Dashboard"></center>
+
+- duplicate the existing visualization and just change the title and Flux query
+<center><img src="./assets/grafana-duplicate-visualization.png" alt="Duplicate visualization"></center>
+
+If _**Duplicate**_ is chosen, open the visualization menu and select _**Edit**_.     
+
+<center><img src="./assets/grafana-edit-duplicate.png" alt="Duplicate visualization"></center>
+
+In the edit window only two things need to be changed, the source in the Flux query and the title. Here the source is changed to the moisture level (**`device_frmpayload_data_humidity_2`**) and title to _**Soil Moisture**_     
+
+<center><img src="./assets/grafana-change-duplicate.png" alt="Duplicate visualization"></center>
+
+Other sensor values can be added to the Dashboard the same way. When all sensor values are visualized, the Dashboard will look like this:
+
+<center><img src="./assets/grafana-soil-sensor-dashboard.png" alt="Duplicate visualization"></center>
+
+----
+----
+
+# LoRa® is a registered trademark or service mark of Semtech Corporation or its affiliates. 
+
+
+# LoRaWAN® is a licensed mark.
+
+----
+----
