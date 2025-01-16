@@ -26,27 +26,10 @@ union coils_n_regs_u coils_n_regs = {0, 0, 0, 0, 0, 0, 0, 0, 0};
  *  u8txenpin : 0 for RS-232 and USB-FTDI
  *               or any pin number > 1 for RS-485
  */
-Modbus master(0, Serial1, 0); // this is master and RS-232 or USB-FTDI
+Modbus master(0, Serial1, WB_TXD1); // this is master and RS-232 or USB-FTDI
 
 /** This is an structure which contains a query to an slave device */
 modbus_t telegram;
-
-/** This is the structure which contains a write to set/reset coils */
-struct coil_s
-{
-	int8_t dev_addr = 1;
-	int8_t coils[16];
-	int8_t num_coils = 0;
-};
-
-/** This is the structure to write to specific registers in the ModBus slave */
-struct register_s
-{
-	int8_t dev_addr = 1;
-	int8_t registers[16];
-	int8_t num_registers = 0;
-	int16_t register_start_address = 0;
-};
 
 /** Coils structure */
 coil_s coil_data;
@@ -70,211 +53,8 @@ uint8_t set_fPort = 2;
 /** Payload buffer */
 WisCayenne g_solution_data(255);
 
-/**
- * @brief Callback after join request cycle
- *
- * @param status Join result
- */
-void joinCallback(int32_t status)
-{
-	if (status != 0)
-	{
-		MYLOG("JOIN-CB", "LoRaWan OTAA - join fail! \r\n");
-		// To be checked if this makes sense
-		// api.lorawan.join();
-	}
-	else
-	{
-		MYLOG("JOIN-CB", "LoRaWan OTAA - joined! \r\n");
-		digitalWrite(LED_BLUE, LOW);
-	}
-}
-
-/**
- * @brief LoRaWAN callback after packet was received
- *
- * @param data pointer to structure with the received data
- */
-void receiveCallback(SERVICE_LORA_RECEIVE_T *data)
-{
-	MYLOG("RX-CB", "RX, port %d, DR %d, RSSI %d, SNR %d", data->Port, data->RxDatarate, data->Rssi, data->Snr);
-	for (int i = 0; i < data->BufferSize; i++)
-	{
-		Serial.printf("%02X", data->Buffer[i]);
-	}
-	Serial.print("\r\n");
-
-	// Check for command fPort
-	if (data->Port == 0)
-	{
-		MYLOG("RX-CB", "MAC command");
-		return;
-	}
-	// Check for valid command sequence
-	if ((data->Buffer[0] == 0xAA) && (data->Buffer[1] == 0x55))
-	{
-		// Check for command
-		if (data->Buffer[2] == MB_FC_WRITE_MULTIPLE_COILS)
-		{
-			// Write coils, set flag for coils write
-			is_registers = false;
-			// Get slave address
-			coil_data.dev_addr = data->Buffer[3];
-			if ((coil_data.dev_addr > 0) && (coil_data.dev_addr < 17))
-			{
-				// Get number of coils
-				coil_data.num_coils = data->Buffer[4];
-
-				// Check for coil number in range (1 to 16)
-				if ((coil_data.num_coils > 0) && (coil_data.num_coils < 17))
-				{
-					// Save coil status
-					for (int idx = 0; idx < coil_data.num_coils; idx++)
-					{
-						coil_data.coils[idx] = data->Buffer[5 + idx];
-					}
-					// Start a timer to handle the incoming coil write request.
-					api.system.timer.start(RAK_TIMER_1, 100, NULL);
-				}
-				else
-				{
-					MYLOG("RX_CB", "Wrong num of coils");
-				}
-			}
-			else
-			{
-				MYLOG("RX_CB", "invalid slave address");
-			}
-		}
-		else if ((data->Buffer[2] == MB_FC_WRITE_REGISTER) || (data->Buffer[2] == MB_FC_WRITE_MULTIPLE_REGISTERS))
-		{
-			// Write registers, set flag for register write
-			is_registers = true;
-
-			// Get slave address
-			register_data.dev_addr = data->Buffer[3];
-			if ((register_data.dev_addr > 0) && (register_data.dev_addr < 17))
-			{
-				// Get start address of the registers
-				register_data.register_start_address = data->Buffer[4];
-
-				// Get number of coils
-				register_data.num_registers = data->Buffer[5];
-
-				// Save register status
-				for (int idx = 0; idx < register_data.num_registers * 2; idx = idx + 2)
-				{
-					register_data.registers[idx / 2] = (uint16_t)(data->Buffer[6 + idx]) << 8;
-					register_data.registers[idx / 2] |= (uint16_t)(data->Buffer[7 + idx]);
-				}
-				// Start a timer to handle the incoming register write request.
-				api.system.timer.start(RAK_TIMER_1, 100, NULL);
-			}
-			else
-			{
-				MYLOG("RX_CB", "invalid slave address");
-			}
-		}
-		else
-		{
-			MYLOG("RX_CB", "Wrong command");
-		}
-	}
-	else
-	{
-		MYLOG("RX_CB", "Wrong format");
-	}
-}
-
-/**
- * @brief LoRaWAN callback after TX is finished
- *
- * @param status TX status
- */
-void sendCallback(int32_t status)
-{
-	MYLOG("TX-CB", "TX status %d", status);
-	digitalWrite(LED_BLUE, LOW);
-}
-
-/**
- * @brief LoRa P2P callback if a packet was received
- *
- * @param data pointer to the data with the received data
- */
-void recv_cb(rui_lora_p2p_recv_t data)
-{
-	MYLOG("RX-P2P-CB", "P2P RX, RSSI %d, SNR %d", data.Rssi, data.Snr);
-	for (int i = 0; i < data.BufferSize; i++)
-	{
-		Serial.printf("%02X", data.Buffer[i]);
-	}
-	Serial.print("\r\n");
-
-	// Check for valid command sequence
-	if ((data.Buffer[0] == 0xAA) && (data.Buffer[1] == 0x55))
-	{
-		// Check for command (only MB_FC_WRITE_MULTIPLE_COILS supported atm)
-		if (data.Buffer[2] == MB_FC_WRITE_MULTIPLE_COILS)
-		{
-			// Get slave address
-			coil_data.dev_addr = data.Buffer[3];
-			if ((coil_data.dev_addr > 0) && (coil_data.dev_addr < 17))
-			{
-				// Get number of coils
-				coil_data.num_coils = data.Buffer[4];
-
-				// Check for coil number in range (1 to 16)
-				if ((coil_data.num_coils > 0) && (coil_data.num_coils < 17))
-				{
-					// Save coil status
-					for (int idx = 0; idx < coil_data.num_coils; idx++)
-					{
-						coil_data.coils[idx] = data.Buffer[5 + idx];
-					}
-					// Start a timer to handle the incoming coil write request.
-					api.system.timer.start(RAK_TIMER_1, 100, NULL);
-				}
-				else
-				{
-					MYLOG("RX_CB", "Wrong num of coils");
-				}
-			}
-			else
-			{
-				MYLOG("RX_CB", "invalid slave address");
-			}
-		}
-		else
-		{
-			MYLOG("RX_CB", "Wrong command");
-		}
-	}
-	else
-	{
-		MYLOG("RX_CB", "Wrong format");
-	}
-}
-
-/**
- * @brief LoRa P2P callback if a packet was sent
- *
- */
-void send_cb(void)
-{
-	MYLOG("TX-P2P-CB", "P2P TX finished");
-	digitalWrite(LED_BLUE, LOW);
-}
-
-/**
- * @brief LoRa P2P callback for CAD result
- *
- * @param result true if activity was detected, false if no activity was detected
- */
-void cad_cb(bool result)
-{
-	MYLOG("CAD-P2P-CB", "P2P CAD reports %s", result ? "activity" : "no activity");
-}
+/** Flag if sensor reading is active */
+bool sensor_active = false;
 
 /**
  * @brief Arduino setup, called once after reboot/power-up
@@ -322,13 +102,19 @@ void setup()
 	// Register the custom AT command to get device status
 	if (!init_status_at())
 	{
-		MYLOG("SETUP", "Add custom AT command STATUS fail");
+		MYLOG("SETUP", "Add custom AT command STATUS failed");
 	}
 
 	// Register the custom AT command to set the send interval
 	if (!init_interval_at())
 	{
-		MYLOG("SETUP", "Add custom AT command Send Interval fail");
+		MYLOG("SETUP", "Add custom AT command Send Interval failed");
+	}
+
+	// Register sensor test command
+	if (!init_test_at())
+	{
+		MYLOG("SETUP", "Add custom AT command sensor test failed");
 	}
 
 	// Get saved sending interval from flash
@@ -339,14 +125,23 @@ void setup()
 	// Initialize the Modbus interface on Serial1 (connected to RAK5802 RS485 module)
 	pinMode(WB_IO2, OUTPUT);
 	digitalWrite(WB_IO2, HIGH);
-	Serial1.begin(4800); // baud-rate at 4800
-	master.start();
-	master.setTimeOut(2000); // if there is no answer in 2000 ms, roll over
+	Serial1.end();
+#ifdef VEMSEE
+	Serial1.begin(4800, RAK_CUSTOM_MODE);
+#endif
+#ifdef GEMHO
+	Serial1.begin(9600, RAK_CUSTOM_MODE);
+#endif
+	// master.start();
+	// master.setTimeOut(2000); // if there is no answer in 2000 ms, roll over
 
 	// Create a timer for interval reading of sensor from Modbus slave.
 	api.system.timer.create(RAK_TIMER_0, modbus_start_sensor, RAK_TIMER_PERIODIC);
-	// Start a timer.
-	api.system.timer.start(RAK_TIMER_0, custom_parameters.send_interval, NULL);
+	if (custom_parameters.send_interval != 0)
+	{
+		// Start a timer.
+		api.system.timer.start(RAK_TIMER_0, custom_parameters.send_interval, NULL);
+	}
 
 	// Create a timer for handling downlink write request to Modbus slave.
 	api.system.timer.create(RAK_TIMER_1, modbus_write_coil, RAK_TIMER_ONESHOT);
@@ -407,8 +202,9 @@ void modbus_start_sensor(void *)
 {
 	digitalWrite(WB_IO2, HIGH);
 	digitalWrite(LED_BLUE, HIGH);
+	sensor_active = true;
 	MYLOG("MODR", "Power-up sensor");
-	api.system.timer.start(RAK_TIMER_2, SENSOR_POWER_TIME, NULL); // 600000 ms = 600 seconds = 10 minutes power on
+	api.system.timer.start(RAK_TIMER_2, SENSOR_POWER_TIME, NULL); // 600000 ms = 600 seconds = 10 minutes power on 
 }
 
 /**
@@ -417,13 +213,22 @@ void modbus_start_sensor(void *)
  * 		If sensor data could be retrieved, the sensor data is sent over LoRa/LoRaWAN
  *
  */
-void modbus_read_register(void *)
+void modbus_read_register(void *test)
 {
 	time_t start_poll;
 	bool data_ready;
 #ifdef VEMSEE
-	Serial1.begin(4800);
+	Serial1.begin(4800, RAK_CUSTOM_MODE);
+#endif
+#ifdef GEMHO
+	Serial1.begin(9600, RAK_CUSTOM_MODE);
+#endif
 	delay(500);
+	master.start();
+	master.setTimeOut(2000); // if there is no answer in 2000 ms, roll over
+	delay(500);
+
+#ifdef VEMSEE
 	MYLOG("MODR", "Send read request over ModBus");
 	// Clear data structure
 	coils_n_regs.data[0] = coils_n_regs.data[1] = coils_n_regs.data[2] = coils_n_regs.data[3] = coils_n_regs.data[4] = 0xFFFF;
@@ -449,7 +254,8 @@ void modbus_read_register(void *)
 		if (master.getState() == COM_IDLE)
 		{
 			// Check if register structure has changed
-			if ((coils_n_regs.data[0] == 0xFFFF) && (coils_n_regs.data[1] == 0xFFFF) && (coils_n_regs.data[2] == 0xFFFF) && (coils_n_regs.data[3] == 0xFFFF) && (coils_n_regs.data[4] == 0xFFFF) && (coils_n_regs.data[5] == 0xFFFF) && (coils_n_regs.data[6] == 0xFFFF) && (coils_n_regs.data[7] == 0xFFFF) && (coils_n_regs.data[8] == 0xFFFF))
+			// if (coils_n_regs.data[0] == 0xFFFF)
+			if ((uint16_t)(coils_n_regs.sensor_data.reg_1) == 0xFFFF)
 			{
 				MYLOG("MODR", "No data received");
 				MYLOG("MODR", "%04X %04X %04X %04X %04X %04X %04X %04X %04X ",
@@ -519,8 +325,6 @@ void modbus_read_register(void *)
 #endif
 
 #ifdef GEMHO
-	Serial1.begin(4800);
-	delay(500);
 	MYLOG("MODR", "Send read request over ModBus");
 	// Clear data structure
 	coils_n_regs.data[0] = coils_n_regs.data[1] = coils_n_regs.data[2] = coils_n_regs.data[3] = coils_n_regs.data[4] = 0xFFFF;
@@ -646,6 +450,22 @@ void modbus_read_register(void *)
 	}
 #endif
 
+	if (test != NULL)
+	{
+		if (data_ready)
+		{
+			AT_PRINTF("+EVT:Sensor Values: M:%.2f-T:%.2f-pH:%.2f-C:%.1f\r\n", (uint16_t)(coils_n_regs.sensor_data.reg_1) / 10.0,
+					  (uint16_t)(coils_n_regs.sensor_data.reg_2) / 10.0,
+					  (uint16_t)(coils_n_regs.sensor_data.reg_4) / 10.0,
+					  (uint16_t)(coils_n_regs.sensor_data.reg_3) * 1.0);
+		}
+		else
+		{
+			AT_PRINTF("+EVT:Error reading sensor\r\n");
+		}
+		return;
+	}
+
 	if (data_ready)
 	{
 		// Send the packet if data was received
@@ -656,6 +476,7 @@ void modbus_read_register(void *)
 	Serial1.end();
 	udrv_serial_deinit(SERIAL_UART1);
 	digitalWrite(LED_BLUE, LOW);
+	sensor_active = false;
 }
 
 /**
@@ -668,7 +489,12 @@ void modbus_write_coil(void *)
 {
 	// Coils are in 16 bit register in form of 7-0, 15-8
 	digitalWrite(WB_IO2, HIGH);
-	Serial1.begin(4800);
+#ifdef VEMSEE
+	Serial1.begin(4800, RAK_CUSTOM_MODE);
+#endif
+#ifdef GEMHO
+	Serial1.begin(9600, RAK_CUSTOM_MODE);
+#endif
 
 	// Check if we write coils or registers
 	if (is_registers)

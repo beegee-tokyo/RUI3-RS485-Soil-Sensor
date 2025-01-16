@@ -7,6 +7,8 @@ Example for a RS485 soil sensor using RAKwireless RUI3 on a RAK3172.
 Tested with the "No-Name" VEM SEE SN-3002-TR-ECTHNPKKPH-N01 sensor.    
 Code is prepared for the GEMHO 7in1 Soil Sensor with RS485, but not tested.
 
+#### ⚠️ IMPORTANT ⚠️ Does not work with the RAK4631 with RUI3. Investigation is ongoing.
+
 # Components
 
 ----

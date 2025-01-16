@@ -10,32 +10,13 @@
  */
 #include "app.h"
 
-#if defined(_VARIANT_RAK3172_) || defined(_VARIANT_RAK3172_SIP_)
-#define AT_PRINTF(...)              \
-	do                              \
-	{                               \
-		Serial.printf(__VA_ARGS__); \
-		Serial.printf("\r\n");      \
-	} while (0);                    \
-	delay(100)
-#else // RAK4630 || RAK11720
-#define AT_PRINTF(...)               \
-	do                               \
-	{                                \
-		Serial.printf(__VA_ARGS__);  \
-		Serial.printf("\r\n");       \
-		Serial6.printf(__VA_ARGS__); \
-		Serial6.printf("\r\n");      \
-	} while (0);                     \
-	delay(100)
-#endif
-
 /** Custom flash parameters */
 custom_param_s custom_parameters;
 
 // Forward declarations
 int interval_send_handler(SERIAL_PORT port, char *cmd, stParam *param);
 int status_handler(SERIAL_PORT port, char *cmd, stParam *param);
+int test_handler(SERIAL_PORT port, char *cmd, stParam *param);
 
 /**
  * @brief Add send interval AT command
@@ -47,7 +28,7 @@ bool init_interval_at(void)
 {
 	return api.system.atMode.add((char *)"SENDINT",
 								 (char *)"Set/Get the interval sending time values in seconds 0 = off, max 2,147,483 seconds",
-								 (char *)"SENDINT", interval_send_handler,
+								 (char *)"Send Interval", interval_send_handler,
 								 RAK_ATCMD_PERM_WRITE | RAK_ATCMD_PERM_READ);
 }
 
@@ -115,6 +96,75 @@ int interval_send_handler(SERIAL_PORT port, char *cmd, stParam *param)
 }
 
 /**
+ * @brief Timer callback to read the sensor
+ * 
+ * @return * void 
+ */
+{
+	// MYLOG("AT", "Start reading sensor"); // Try to read the sensor
+	uint8_t test = 0;
+	modbus_read_register(&test);
+	// MYLOG("AT", "Finished reading sensor");
+	// Shut down sensors and communication for lowest power consumption
+	digitalWrite(WB_IO2, LOW);
+	Serial1.end();
+	udrv_serial_deinit(SERIAL_UART1);
+	digitalWrite(LED_GREEN, LOW);
+}
+
+/**
+ * @brief Add sensor test AT command
+ *
+ * @return true if success
+ * @return false if failed
+ */
+bool init_test_at(void)
+{
+	// Create a timer to read the sensor after 30 seconds power up.
+	api.system.timer.create(RAK_TIMER_3, test_read, RAK_TIMER_ONESHOT);
+
+	return api.system.atMode.add((char *)"STEST",
+								 (char *)"Read sensor",
+								 (char *)"Sensor Test", test_handler,
+								 RAK_ATCMD_PERM_WRITE | RAK_ATCMD_PERM_READ);
+}
+
+/**
+ * @brief Handler for sensor test AT commands
+ *
+ * @param port Serial port used
+ * @param cmd char array with the received AT command
+ * @param param char array with the received AT command parameters
+ * @return int result of command parsing
+ * 			AT_OK AT command & parameters valid
+ * 			AT_PARAM_ERROR command or parameters invalid
+ */
+int test_handler(SERIAL_PORT port, char *cmd, stParam *param)
+{
+	if ((param->argc == 1 && !strcmp(param->argv[0], "?")) || (param->argc == 0))
+	{
+		if (sensor_active)
+		{
+			test_active = false;
+			return AT_BUSY_ERROR;
+		}
+		AT_PRINTF("Sensor Power Up");
+		// MYLOG("AT", "Powerup sensor");
+		digitalWrite(WB_IO2, HIGH);
+		digitalWrite(LED_GREEN, HIGH);		 // Show powered up
+		// Can't use delay here. Use timer to read sensor after 5 seconds of powerup
+		api.system.timer.start(RAK_TIMER_3, 5000, NULL);
+	}
+	else if (param->argc >= 1)
+	{
+		test_active = false;
+		return AT_PARAM_ERROR;
+	}
+	test_active = false;
+	return AT_OK;
+}
+
+/**
  * @brief Add custom Status AT commands
  *
  * @return true AT commands were added
@@ -124,7 +174,7 @@ bool init_status_at(void)
 {
 	return api.system.atMode.add((char *)"STATUS",
 								 (char *)"Get device information",
-								 (char *)"STATUS", status_handler,
+								 (char *)"Device Status", status_handler,
 								 RAK_ATCMD_PERM_READ);
 }
 
@@ -158,7 +208,7 @@ int status_handler(SERIAL_PORT port, char *cmd, stParam *param)
 		AT_PRINTF("Module: %s", value_str.c_str());
 		AT_PRINTF("Version: %s", api.system.firmwareVer.get().c_str());
 		AT_PRINTF("Send time: %d s", custom_parameters.send_interval / 1000);
-		/// \todo
+		AT_PRINTF("Power Up time: %d s", SENSOR_POWER_TIME / 1000);
 		nw_mode = api.lorawan.nwm.get();
 		AT_PRINTF("Network mode %s", nwm_list[nw_mode]);
 		if (nw_mode == 1)

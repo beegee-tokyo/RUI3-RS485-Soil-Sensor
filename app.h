@@ -12,8 +12,14 @@
 #include <Arduino.h>
 #include "RUI3_ModbusRtu.h"
 
+// #define TEST_MODE
+#ifdef TEST_MODE
 // Sensor reading time (how long sensor is powered up before data is read)
-#define SENSOR_POWER_TIME (600000)
+#define SENSOR_POWER_TIME (60000) // 1 minute
+#else
+// Sensor reading time (how long sensor is powered up before data is read)
+#define SENSOR_POWER_TIME (300000) // 5 minutes
+#endif
 
 // Debug
 // Debug output set to 0 to disable app debug output
@@ -49,6 +55,28 @@
 #define MYLOG(...)
 #endif
 
+#if defined(_VARIANT_RAK3172_) || defined(_VARIANT_RAK3172_SIP_)
+#define AT_PRINTF(...)              \
+	do                              \
+	{                               \
+		Serial.printf(__VA_ARGS__); \
+		Serial.printf("\r\n");      \
+	} while (0);                    \
+	delay(100)
+#else // RAK4630 || RAK11720
+#define AT_PRINTF(...)               \
+	do                               \
+	{                                \
+		Serial.printf(__VA_ARGS__);  \
+		Serial.printf("\r\n");       \
+		Serial6.printf(__VA_ARGS__); \
+		Serial6.printf("\r\n");      \
+	} while (0);                     \
+	delay(100)
+#endif
+
+// Modbus stuff
+/** Sensor register structure */
 struct sensor_data_s
 {
 	// int16_t coils;
@@ -63,7 +91,7 @@ struct sensor_data_s
 	int16_t reg_9;
 };
 
-// Modbus stuff
+/** Union for received data mapping */
 union coils_n_regs_u
 {
 	sensor_data_s sensor_data;
@@ -82,13 +110,42 @@ struct custom_param_s
 /** Custom flash parameters */
 extern custom_param_s custom_parameters;
 
+/** This is the structure which contains a write to set/reset coils */
+struct coil_s
+{
+	int8_t dev_addr = 1;
+	int8_t coils[16];
+	int8_t num_coils = 0;
+};
+
+/** This is the structure to write to specific registers in the ModBus slave */
+struct register_s
+{
+	int8_t dev_addr = 1;
+	int8_t registers[16];
+	int8_t num_registers = 0;
+	int16_t register_start_address = 0;
+};
+
 // Forward declarations
 void send_packet(void);
 bool init_status_at(void);
 bool init_interval_at(void);
+bool init_test_at(void);
 bool get_at_setting(void);
 bool save_at_setting(void);
 uint8_t get_min_dr(uint16_t region, uint16_t payload_size);
+void joinCallback(int32_t status);
+void receiveCallback(SERVICE_LORA_RECEIVE_T *data);
+void sendCallback(int32_t status);
+void recv_cb(rui_lora_p2p_recv_t data);
+void send_cb(void);
+void cad_cb(bool result);
+void modbus_read_register(void *test);
+extern bool is_registers;
+extern coil_s coil_data;
+extern register_s register_data;
+extern bool sensor_active;
 
 // LoRaWAN stuff
 #include "wisblock_cayenne.h"
