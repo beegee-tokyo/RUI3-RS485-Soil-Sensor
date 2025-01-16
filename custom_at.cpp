@@ -100,11 +100,12 @@ int interval_send_handler(SERIAL_PORT port, char *cmd, stParam *param)
  * 
  * @return * void 
  */
+void test_read(void *)
 {
-	// MYLOG("AT", "Start reading sensor"); // Try to read the sensor
+	MYLOG("AT", "Start reading sensor"); // Try to read the sensor
 	uint8_t test = 0;
 	modbus_read_register(&test);
-	// MYLOG("AT", "Finished reading sensor");
+	MYLOG("AT", "Finished reading sensor");
 	// Shut down sensors and communication for lowest power consumption
 	digitalWrite(WB_IO2, LOW);
 	Serial1.end();
@@ -120,7 +121,7 @@ int interval_send_handler(SERIAL_PORT port, char *cmd, stParam *param)
  */
 bool init_test_at(void)
 {
-	// Create a timer to read the sensor after 30 seconds power up.
+	// Create a timer to read the sensor after 5 seconds power up.
 	api.system.timer.create(RAK_TIMER_3, test_read, RAK_TIMER_ONESHOT);
 
 	return api.system.atMode.add((char *)"STEST",
@@ -145,7 +146,6 @@ int test_handler(SERIAL_PORT port, char *cmd, stParam *param)
 	{
 		if (sensor_active)
 		{
-			test_active = false;
 			return AT_BUSY_ERROR;
 		}
 		AT_PRINTF("Sensor Power Up");
@@ -157,10 +157,8 @@ int test_handler(SERIAL_PORT port, char *cmd, stParam *param)
 	}
 	else if (param->argc >= 1)
 	{
-		test_active = false;
 		return AT_PARAM_ERROR;
 	}
-	test_active = false;
 	return AT_OK;
 }
 

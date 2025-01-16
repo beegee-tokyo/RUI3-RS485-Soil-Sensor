@@ -24,7 +24,7 @@
 // Debug
 // Debug output set to 0 to disable app debug output
 #ifndef MY_DEBUG
-#define MY_DEBUG 1
+#define MY_DEBUG 0
 #endif
 
 #if MY_DEBUG > 0
@@ -36,6 +36,7 @@
 			Serial.printf("[%s] ", tag); \
 		Serial.printf(__VA_ARGS__);      \
 		Serial.printf("\n");             \
+		Serial.flush();                  \
 	} while (0);                         \
 	delay(100)
 #else // RAK4630 || RAK11720
@@ -48,6 +49,7 @@
 		Serial.printf("\r\n");           \
 		Serial6.printf(__VA_ARGS__);     \
 		Serial6.printf("\r\n");          \
+		Serial.flush();                  \
 	} while (0);                         \
 	delay(100)
 #endif

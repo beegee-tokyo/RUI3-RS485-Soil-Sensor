@@ -26,7 +26,7 @@ union coils_n_regs_u coils_n_regs = {0, 0, 0, 0, 0, 0, 0, 0, 0};
  *  u8txenpin : 0 for RS-232 and USB-FTDI
  *               or any pin number > 1 for RS-485
  */
-Modbus master(0, Serial1, WB_TXD1); // this is master and RS-232 or USB-FTDI
+Modbus master(0, Serial1, 0); // this is master and RS-232 or USB-FTDI
 
 /** This is an structure which contains a query to an slave device */
 modbus_t telegram;
@@ -92,7 +92,8 @@ void setup()
 
 	// Delay for 5 seconds to give the chance for AT+BOOT
 	delay(5000);
-	api.system.firmwareVersion.set("RUI3-Soil-Sensor-V1.0.0");
+	String version = "RUI3-Soil-Sensor-V" + String(SW_VERSION_0) + "." + String(SW_VERSION_1) + "." + String(SW_VERSION_2);
+	api.system.firmwareVersion.set(version);
 	Serial.println("RAKwireless RUI3 Soil Sensor");
 	Serial.println("------------------------------------------------------");
 	Serial.println("Setup the device with WisToolBox or AT commands before using it");
@@ -204,7 +205,7 @@ void modbus_start_sensor(void *)
 	digitalWrite(LED_BLUE, HIGH);
 	sensor_active = true;
 	MYLOG("MODR", "Power-up sensor");
-	api.system.timer.start(RAK_TIMER_2, SENSOR_POWER_TIME, NULL); // 600000 ms = 600 seconds = 10 minutes power on 
+	api.system.timer.start(RAK_TIMER_2, SENSOR_POWER_TIME, NULL); // 600000 ms = 600 seconds = 10 minutes power on
 }
 
 /**
@@ -215,6 +216,14 @@ void modbus_start_sensor(void *)
  */
 void modbus_read_register(void *test)
 {
+	if (test != NULL)
+	{
+		MYLOG("MODR", "Test sensor reading");
+	}
+	else
+	{
+		MYLOG("MODR", "Scheduled sensor reading");
+	}
 	time_t start_poll;
 	bool data_ready;
 #ifdef VEMSEE
@@ -223,9 +232,11 @@ void modbus_read_register(void *test)
 #ifdef GEMHO
 	Serial1.begin(9600, RAK_CUSTOM_MODE);
 #endif
+	MYLOG("MODR", "Serial initialized");
 	delay(500);
 	master.start();
 	master.setTimeOut(2000); // if there is no answer in 2000 ms, roll over
+	MYLOG("MODR", "Modbus master initialized");
 	delay(500);
 
 #ifdef VEMSEE
