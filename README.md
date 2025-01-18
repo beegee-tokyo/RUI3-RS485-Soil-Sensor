@@ -154,12 +154,18 @@ OK
 The values are soil humidity (M), temperature (T) pH value (pH) and conductivity (C). If the sensor is not in soil, these values might be zeros or not making any sense.
 
 
-_**Sensor not found
+_**Sensor not found**_
 ```log
 > atc+stest=?
 Sensor Power Up
 OK
 +EVT:Error reading sensor
+```
+
+_**Sensor reading already active**_ This can be because a manual started test is not finished yet or the scheduled automatic sensor reading is active
+```log
+> atc+stest=?
+AT_BUSY_ERROR
 ```
 
 ----
