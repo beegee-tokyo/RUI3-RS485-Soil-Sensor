@@ -51,7 +51,7 @@ VEM SEE SN-3002-TR-ECTHNPKKPH-N01 Soil Sensor register setup
 
 ----
 
-### GEMHO 7in1 Soil Sensor with RS485, datasheet is in [assets](./assets/Gemho RS485 Type Soil 7in1 Sensor.pdf)
+### GEMHO 7in1 Soil Sensor with RS485, datasheet is in [assets](./assets/Gemho_RS485_Type_Soil_7in1_Sensor.pdf)
 
 #### ⚠️ IMPORTANT ⚠️ Requires to set #define GEMHO
 
@@ -75,7 +75,7 @@ GEMHO 7in1 Soil Sensor with RS485 register setup
 - [RAK3172 Evaluation Board](https://docs.rakwireless.com/product-categories/wisduo/rak3172-evaluation-board/overview/) with
    - [RAK19007](https://docs.rakwireless.com/product-categories/wisblock/rak19007/overview) WisBlock Base Board
    - [RAK3372](https://docs.rakwireless.com/product-categories/wisblock/rak3372/overview) WisBlock Core module with STM32WLE5
-   - [RAK4631](https://docs.rakwireless.com/product-categories/wisblock/rak4631/overview) WisBlock Core module with nRF52840
+   - [alternative RAK4631](https://docs.rakwireless.com/product-categories/wisblock/rak4631/overview) WisBlock Core module with nRF52840
 - [RAK5802-M](https://docs.rakwireless.com/product-categories/wisblock/rak5802/overview) WisBlock RS485 module (modified variant)
 - [RAK19002](https://docs.rakwireless.com/product-categories/wisblock/rak19002/overview) WisBlock 12V booster for supply of soil sensor
 - [Unify Enclosure 150x100x45 with Solar Panel](https://docs.rakwireless.com/product-categories/wisblock/rakbox-uo150x100x45-solar/overview/)
@@ -85,8 +85,8 @@ GEMHO 7in1 Soil Sensor with RS485 register setup
 
 # Assembly
 
-Assembly is done with the "standard" mounting plate of the Unify Enclosure.    
-Sensor connection is done with the 5-pin IP65 connector of the Unify Enclosure with Solar Panel
+Assembly is done with the "standard" mounting plate of the Unify Enclosure.       
+Sensor connection is done with the 5-pin IP65 connector of the Unify Enclosure with Solar Panel    
 Antenna used is [Blade Antenna](https://docs.rakwireless.com/Product-Categories/Accessories/RAKARJ16/Overview/) with 2.3 dBi gain.
 
 <center><img src="./assets/assembly.jpg" width="35%" alt="Device">&nbsp&nbsp&nbsp&nbsp<img src="./assets/sensor.jpg" height="50%" width="35%" alt="Sensor"></center>
@@ -112,6 +112,7 @@ To achieve good sensor readings, the sensor is powered up for 5 minutes before t
 
 ## Custom AT commands
 
+### Send Interval
 Send interval of the sensor values can be set with a custom AT command. Interval time is set in _**seconds**_
 
 _**`ATC+SENDINT?`**_ Command definition
@@ -131,7 +132,8 @@ Send interval cannot be less than 2 times the sensor power on time. With the cur
 
 ----
 
-Sensor connection can be custom AT command.
+### Sensor Test
+Sensor connection can be tested with a custom AT command.
 
 _**`ATC+STEST?`**_ Command definition
 > ATC+STEST,R*W: Read sensor    
@@ -306,7 +308,7 @@ Then fill out the connection details to the InfluxDB database.
 
 ### Setup Grafana
 
-In the Grafana web UI, open _**Connections**_, then _**Add new connection**_to setup the connection to the influxDB database.    
+In the Grafana web UI, open _**Connections**_, then _**Add new connection**_ to setup the connection to the influxDB database.    
 
 <center><img src="./assets/grafana-connection-1.png" alt="Grafana Setup Connection"></center>
 
