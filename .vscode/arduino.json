@@ -3,11 +3,11 @@
     "board": "rak_rui:stm32:WisDuoRAK3172EvaluationBoard",
     "output": "build",
     "sketch": "RUI3-RS485-Soil-Sensor.ino",
-    "port": "COM4",
+    "port": "COM81",
     "buildPreferences": [
         [
             "compiler.cpp.extra_flags",
-            "-DMY_DEBUG=0 -DSW_VERSION_0=1 -DSW_VERSION_1=1 -DSW_VERSION_2=0"
+            "-DMY_DEBUG=0 -DSW_VERSION_0=1 -DSW_VERSION_1=1 -DSW_VERSION_2=1 -DTEST_MODE=0"
         ]
     ],
     "version": "1.1.0",

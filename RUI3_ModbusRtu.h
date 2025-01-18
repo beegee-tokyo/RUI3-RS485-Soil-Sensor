@@ -143,7 +143,7 @@ const unsigned char fctsupported[] =
 		MB_FC_WRITE_MULTIPLE_REGISTERS};
 
 #define T35 5
-#define MAX_BUFFER 64 //!< maximum size for the communication buffer in bytes
+#define MAX_BUFFER 128 //!< maximum size for the communication buffer in bytes
 
 /**
  * @class Modbus

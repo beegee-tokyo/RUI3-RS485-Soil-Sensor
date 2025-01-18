@@ -13,6 +13,9 @@
 /** Custom flash parameters */
 custom_param_s custom_parameters;
 
+/** Flag if test read is active */
+volatile bool test_running = false;
+
 // Forward declarations
 int interval_send_handler(SERIAL_PORT port, char *cmd, stParam *param);
 int status_handler(SERIAL_PORT port, char *cmd, stParam *param);
@@ -97,8 +100,8 @@ int interval_send_handler(SERIAL_PORT port, char *cmd, stParam *param)
 
 /**
  * @brief Timer callback to read the sensor
- * 
- * @return * void 
+ *
+ * @return * void
  */
 void test_read(void *)
 {
@@ -106,6 +109,9 @@ void test_read(void *)
 	uint8_t test = 0;
 	modbus_read_register(&test);
 	MYLOG("AT", "Finished reading sensor");
+
+	test_running = false;
+
 	// Shut down sensors and communication for lowest power consumption
 	digitalWrite(WB_IO2, LOW);
 	Serial1.end();
@@ -148,10 +154,18 @@ int test_handler(SERIAL_PORT port, char *cmd, stParam *param)
 		{
 			return AT_BUSY_ERROR;
 		}
+
+		if (test_running)
+		{
+			return AT_BUSY_ERROR;
+		}
+		
+		test_running = true;
+
 		AT_PRINTF("Sensor Power Up");
 		// MYLOG("AT", "Powerup sensor");
 		digitalWrite(WB_IO2, HIGH);
-		digitalWrite(LED_GREEN, HIGH);		 // Show powered up
+		digitalWrite(LED_GREEN, HIGH); // Show powered up
 		// Can't use delay here. Use timer to read sensor after 5 seconds of powerup
 		api.system.timer.start(RAK_TIMER_3, 5000, NULL);
 	}

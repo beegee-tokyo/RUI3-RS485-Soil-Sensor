@@ -12,8 +12,13 @@
 #include <Arduino.h>
 #include "RUI3_ModbusRtu.h"
 
-// #define TEST_MODE
-#ifdef TEST_MODE
+// Test mode
+// Test mode set to 0 to use long sensor reading times
+#ifndef TEST_MODE
+#define TEST_MODE 0
+#endif
+
+#if TEST_MODE == 1
 // Sensor reading time (how long sensor is powered up before data is read)
 #define SENSOR_POWER_TIME (60000) // 1 minute
 #else
@@ -148,6 +153,7 @@ extern bool is_registers;
 extern coil_s coil_data;
 extern register_s register_data;
 extern bool sensor_active;
+extern const char *sw_version;
 
 // LoRaWAN stuff
 #include "wisblock_cayenne.h"

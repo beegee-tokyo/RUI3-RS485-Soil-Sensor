@@ -93,11 +93,14 @@ void setup()
 	// Delay for 5 seconds to give the chance for AT+BOOT
 	delay(5000);
 	String version = "RUI3-Soil-Sensor-V" + String(SW_VERSION_0) + "." + String(SW_VERSION_1) + "." + String(SW_VERSION_2);
+	String module_type = api.system.modelId.get();
+	module_type.toUpperCase();
 	api.system.firmwareVersion.set(version);
 	Serial.println("RAKwireless RUI3 Soil Sensor");
 	Serial.println("------------------------------------------------------");
 	Serial.println("Setup the device with WisToolBox or AT commands before using it");
-	Serial.printf("Ver %s\n", api.system.firmwareVersion.get().c_str());
+	Serial.printf("App Version %s\n", api.system.firmwareVersion.get().c_str());
+	Serial.printf("BSP Version %s\n", sw_version);
 	Serial.println("------------------------------------------------------");
 
 	// Register the custom AT command to get device status
@@ -257,79 +260,81 @@ void modbus_read_register(void *test)
 	start_poll = millis();
 	data_ready = false;
 	// Wait for slave response for 5 seconds
-	while ((millis() - start_poll) < 5000)
+	while ((millis() - start_poll) < 10000)
 	{
 		// Check incoming messages
-		master.poll();
-		// Status idle, either data was received or the slave response timed out
-		if (master.getState() == COM_IDLE)
+		if (master.poll() != 0)
 		{
-			// Check if register structure has changed
-			// if (coils_n_regs.data[0] == 0xFFFF)
-			if ((uint16_t)(coils_n_regs.sensor_data.reg_1) == 0xFFFF)
+			// Status idle, either data was received or the slave response timed out
+			if (master.getState() == COM_IDLE)
 			{
-				MYLOG("MODR", "No data received");
-				MYLOG("MODR", "%04X %04X %04X %04X %04X %04X %04X %04X %04X ",
-					  coils_n_regs.data[0], coils_n_regs.data[1], coils_n_regs.data[2], coils_n_regs.data[3],
-					  coils_n_regs.data[4], coils_n_regs.data[5], coils_n_regs.data[6], coils_n_regs.data[7], coils_n_regs.data[8]);
-				break;
-			}
-			else
-			{
-				MYLOG("MODR", "Moisture = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_1) / 10.0);
-				MYLOG("MODR", "Temperature = %.2f", coils_n_regs.sensor_data.reg_2 / 10.0);
-				MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.reg_3 * 1.0);
-				MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_4) / 10.0);
-				MYLOG("MODR", "Nitrogen = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_5) * 1.0);
-				MYLOG("MODR", "Phosphorus = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_6) * 1.0);
-				MYLOG("MODR", "Potassium = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_7) * 1.0);
-				MYLOG("MODR", "Salinity = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_8) * 1.0);
-				MYLOG("MODR", "TDS = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_9) * 1.0);
-
-				data_ready = true;
-
-				// Clear payload
-				g_solution_data.reset();
-
-				// Add temperature level to payload
-				g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 10.0);
-
-				// Add moisture level to payload
-				g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, (uint16_t)(coils_n_regs.sensor_data.reg_1) / 10.0);
-
-				// Add conductivity value to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_COND, (uint16_t)(coils_n_regs.sensor_data.reg_3));
-
-				// Add pH value to payload
-				g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.reg_4) / 10);
-
-				// Add nitrogen level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_NITRO, (uint16_t)(coils_n_regs.sensor_data.reg_5));
-
-				// Add phosphorus level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_PHOS, (uint16_t)(coils_n_regs.sensor_data.reg_6));
-
-				// Addf potassium level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_POTA, (uint16_t)(coils_n_regs.sensor_data.reg_7));
-
-				// Add salinity level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_SALIN, (uint16_t)(coils_n_regs.sensor_data.reg_8));
-
-				// Add TDS value to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_TDS, (uint16_t)(coils_n_regs.sensor_data.reg_9));
-
-				float battery_reading = 0.0;
-				// Add battery voltage
-				for (int i = 0; i < 10; i++)
+				// Check if register structure has changed
+				// if (coils_n_regs.data[0] == 0xFFFF)
+				if ((uint16_t)(coils_n_regs.sensor_data.reg_1) == 0xFFFF)
 				{
-					battery_reading += api.system.bat.get(); // get battery voltage
+					MYLOG("MODR", "No data received");
+					MYLOG("MODR", "%04X %04X %04X %04X %04X %04X %04X %04X %04X ",
+						  coils_n_regs.data[0], coils_n_regs.data[1], coils_n_regs.data[2], coils_n_regs.data[3],
+						  coils_n_regs.data[4], coils_n_regs.data[5], coils_n_regs.data[6], coils_n_regs.data[7], coils_n_regs.data[8]);
+					break;
 				}
+				else
+				{
+					MYLOG("MODR", "Moisture = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_1) / 10.0);
+					MYLOG("MODR", "Temperature = %.2f", coils_n_regs.sensor_data.reg_2 / 10.0);
+					MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.reg_3 * 1.0);
+					MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_4) / 10.0);
+					MYLOG("MODR", "Nitrogen = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_5) * 1.0);
+					MYLOG("MODR", "Phosphorus = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_6) * 1.0);
+					MYLOG("MODR", "Potassium = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_7) * 1.0);
+					MYLOG("MODR", "Salinity = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_8) * 1.0);
+					MYLOG("MODR", "TDS = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_9) * 1.0);
 
-				battery_reading = battery_reading / 10;
+					data_ready = true;
 
-				g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
+					// Clear payload
+					g_solution_data.reset();
 
-				break;
+					// Add temperature level to payload
+					g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 10.0);
+
+					// Add moisture level to payload
+					g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, (uint16_t)(coils_n_regs.sensor_data.reg_1) / 10.0);
+
+					// Add conductivity value to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_COND, (uint16_t)(coils_n_regs.sensor_data.reg_3));
+
+					// Add pH value to payload
+					g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.reg_4) / 10);
+
+					// Add nitrogen level to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_NITRO, (uint16_t)(coils_n_regs.sensor_data.reg_5));
+
+					// Add phosphorus level to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_PHOS, (uint16_t)(coils_n_regs.sensor_data.reg_6));
+
+					// Addf potassium level to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_POTA, (uint16_t)(coils_n_regs.sensor_data.reg_7));
+
+					// Add salinity level to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_SALIN, (uint16_t)(coils_n_regs.sensor_data.reg_8));
+
+					// Add TDS value to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_TDS, (uint16_t)(coils_n_regs.sensor_data.reg_9));
+
+					float battery_reading = 0.0;
+					// Add battery voltage
+					for (int i = 0; i < 10; i++)
+					{
+						battery_reading += api.system.bat.get(); // get battery voltage
+					}
+
+					battery_reading = battery_reading / 10;
+
+					g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
+
+					break;
+				}
 			}
 		}
 	}
@@ -353,57 +358,59 @@ void modbus_read_register(void *test)
 
 	start_poll = millis();
 	data_ready = false;
-	// Wait for slave response for 5 seconds
-	while ((millis() - start_poll) < 5000)
+	// Wait for slave response for 10 seconds
+	while ((millis() - start_poll) < 10000)
 	{
 		// Check incoming messages
-		master.poll();
-		// Status idle, either data was received or the slave response timed out
-		if (master.getState() == COM_IDLE)
+		if (master.poll() != 0)
 		{
-			// Check if register structure has changed
-			if ((coils_n_regs.data[0] == 0xFFFF) && (coils_n_regs.data[1] == 0xFFFF) && (coils_n_regs.data[2] == 0xFFFF) && (coils_n_regs.data[3] == 0xFFFF))
+			// Status idle, either data was received or the slave response timed out
+			if (master.getState() == COM_IDLE)
 			{
-				MYLOG("MODR", "No data received");
-				MYLOG("MODR", "%04X %04X %04X %04X",
-					  coils_n_regs.data[0], coils_n_regs.data[1], coils_n_regs.data[2], coils_n_regs.data[3]);
-				break;
-			}
-			else
-			{
-				MYLOG("MODR", "Moisture = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_2) / 100.0);
-				MYLOG("MODR", "Temperature = %.2f", coils_n_regs.sensor_data.reg_1 / 100.0);
-				MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.reg_3);
-				MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_4) / 100.0);
-				data_ready = true;
-
-				// Clear payload
-				g_solution_data.reset();
-
-				// Add temperature level to payload
-				g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 100);
-
-				// Add moisture level to payload
-				g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, (uint16_t)(coils_n_regs.sensor_data.reg_1) / 100);
-
-				// Add conductivity value to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_COND, (uint16_t)(coils_n_regs.sensor_data.reg_3));
-
-				// Add pH value to payload
-				g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.reg_4) / 100);
-
-				float battery_reading = 0.0;
-				// Add battery voltage
-				for (int i = 0; i < 10; i++)
+				// Check if register structure has changed
+				if ((coils_n_regs.data[0] == 0xFFFF) && (coils_n_regs.data[1] == 0xFFFF) && (coils_n_regs.data[2] == 0xFFFF) && (coils_n_regs.data[3] == 0xFFFF))
 				{
-					battery_reading += api.system.bat.get(); // get battery voltage
+					MYLOG("MODR", "No data received");
+					MYLOG("MODR", "%04X %04X %04X %04X",
+						  coils_n_regs.data[0], coils_n_regs.data[1], coils_n_regs.data[2], coils_n_regs.data[3]);
+					break;
 				}
+				else
+				{
+					MYLOG("MODR", "Moisture = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_2) / 100.0);
+					MYLOG("MODR", "Temperature = %.2f", coils_n_regs.sensor_data.reg_1 / 100.0);
+					MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.reg_3);
+					MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_4) / 100.0);
+					data_ready = true;
 
-				battery_reading = battery_reading / 10;
+					// Clear payload
+					g_solution_data.reset();
 
-				g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
+					// Add temperature level to payload
+					g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 100);
 
-				break;
+					// Add moisture level to payload
+					g_solution_data.addRelativeHumidity(LPP_CHANNEL_MOIST, (uint16_t)(coils_n_regs.sensor_data.reg_1) / 100);
+
+					// Add conductivity value to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_COND, (uint16_t)(coils_n_regs.sensor_data.reg_3));
+
+					// Add pH value to payload
+					g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.reg_4) / 100);
+
+					float battery_reading = 0.0;
+					// Add battery voltage
+					for (int i = 0; i < 10; i++)
+					{
+						battery_reading += api.system.bat.get(); // get battery voltage
+					}
+
+					battery_reading = battery_reading / 10;
+
+					g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
+
+					break;
+				}
 			}
 		}
 	}
@@ -422,40 +429,42 @@ void modbus_read_register(void *test)
 	master.query(telegram);
 
 	start_poll = millis();
-	// Wait for slave response for 5 seconds
-	while ((millis() - start_poll) < 5000)
+	// Wait for slave response for 10 seconds
+	while ((millis() - start_poll) < 10000)
 	{
 		// Check incoming messages
-		master.poll();
-		// Status idle, either data was received or the slave response timed out
-		if (master.getState() == COM_IDLE)
+		if (master.poll() != 0)
 		{
-			// Check if register structure has changed
-			if ((coils_n_regs.data[0] == 0xFFFF) && (coils_n_regs.data[1] == 0xFFFF) && (coils_n_regs.data[2] == 0xFFFF))
+			// Status idle, either data was received or the slave response timed out
+			if (master.getState() == COM_IDLE)
 			{
-				MYLOG("MODR", "No data received");
-				MYLOG("MODR", "%04X %04X %04X",
-					  coils_n_regs.data[0], coils_n_regs.data[1], coils_n_regs.data[2]);
-				data_ready = false;
-				break;
-			}
-			else
-			{
-				MYLOG("MODR", "Nitrogen = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_1));
-				MYLOG("MODR", "Phosphorus = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_2));
-				MYLOG("MODR", "Potatium = %.1f", (uint16_t)(coils_n_regs.sensor_data.reg_3));
-				data_ready = true;
+				// Check if register structure has changed
+				if ((coils_n_regs.data[0] == 0xFFFF) && (coils_n_regs.data[1] == 0xFFFF) && (coils_n_regs.data[2] == 0xFFFF))
+				{
+					MYLOG("MODR", "No data received");
+					MYLOG("MODR", "%04X %04X %04X",
+						  coils_n_regs.data[0], coils_n_regs.data[1], coils_n_regs.data[2]);
+					data_ready = false;
+					break;
+				}
+				else
+				{
+					MYLOG("MODR", "Nitrogen = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_1));
+					MYLOG("MODR", "Phosphorus = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_2));
+					MYLOG("MODR", "Potatium = %.1f", (uint16_t)(coils_n_regs.sensor_data.reg_3));
+					data_ready = true;
 
-				// Add nitrogen level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_NITRO, (uint16_t)(coils_n_regs.sensor_data.reg_1));
+					// Add nitrogen level to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_NITRO, (uint16_t)(coils_n_regs.sensor_data.reg_1));
 
-				// Add phosphorus level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_PHOS, (uint16_t)(coils_n_regs.sensor_data.reg_2));
+					// Add phosphorus level to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_PHOS, (uint16_t)(coils_n_regs.sensor_data.reg_2));
 
-				// Addf potassium level to payload
-				g_solution_data.addConcentration(LPP_CHANNEL_POTA, (uint16_t)(coils_n_regs.sensor_data.reg_3));
+					// Addf potassium level to payload
+					g_solution_data.addConcentration(LPP_CHANNEL_POTA, (uint16_t)(coils_n_regs.sensor_data.reg_3));
 
-				break;
+					break;
+				}
 			}
 		}
 	}

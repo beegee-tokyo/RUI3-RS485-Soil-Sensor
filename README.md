@@ -7,8 +7,6 @@ Example for a RS485 soil sensor using RAKwireless RUI3 on a RAK3172.
 Tested with the "No-Name" VEM SEE SN-3002-TR-ECTHNPKKPH-N01 sensor.    
 Code is prepared for the GEMHO 7in1 Soil Sensor with RS485, but not tested.
 
-#### ⚠️ IMPORTANT ⚠️ Does not work with the RAK4631 with RUI3. Investigation is ongoing.
-
 # Components
 
 ----
@@ -77,6 +75,7 @@ GEMHO 7in1 Soil Sensor with RS485 register setup
 - [RAK3172 Evaluation Board](https://docs.rakwireless.com/product-categories/wisduo/rak3172-evaluation-board/overview/) with
    - [RAK19007](https://docs.rakwireless.com/product-categories/wisblock/rak19007/overview) WisBlock Base Board
    - [RAK3372](https://docs.rakwireless.com/product-categories/wisblock/rak3372/overview) WisBlock Core module with STM32WLE5
+   - [RAK4631](https://docs.rakwireless.com/product-categories/wisblock/rak4631/overview) WisBlock Core module with nRF52840
 - [RAK5802-M](https://docs.rakwireless.com/product-categories/wisblock/rak5802/overview) WisBlock RS485 module (modified variant)
 - [RAK19002](https://docs.rakwireless.com/product-categories/wisblock/rak19002/overview) WisBlock 12V booster for supply of soil sensor
 - [Unify Enclosure 150x100x45 with Solar Panel](https://docs.rakwireless.com/product-categories/wisblock/rakbox-uo150x100x45-solar/overview/)
@@ -107,7 +106,7 @@ RAK19002 12V booster _**must**_ be installed in the Sensor Slot B
 
 Firmware is based on [RUI3-RAK5802-Modbus-Master](https://github.com/RAKWireless/RUI3-Best-Practice/tree/main/ModBus/RUI3-RAK5802-Modbus-Master) with adjustements for the used RS485 sensor.
 
-To achieve good sensor readings, the sensor is powered up for 10 minutes before the sensor data is read. This gives the sensor time to do the readings and calculations.
+To achieve good sensor readings, the sensor is powered up for 5 minutes before the sensor data is read. This gives the sensor time to do the readings and calculations.
 
 ----
 
@@ -132,7 +131,40 @@ Send interval cannot be less than 2 times the sensor power on time. With the cur
 
 ----
 
-## Write to coils or registers
+Sensor connection can be custom AT command.
+
+_**`ATC+STEST?`**_ Command definition
+> ATC+STEST,R*W: Read sensor    
+OK
+
+_**`ATC+STEST=?`**_ Start sensor test
+> ATC+STEST=?    
+OK
+
+#### ⚠️ IMPORTANT ⚠️  
+After starting the test, it takes 15-20 seconds before a result is available. The output of the command is:
+
+_**Sensor found**_
+```log
+> atc+stest=?
+Sensor Power Up
+OK
++EVT:Sensor Values: M:22.10-T:25.70-pH:3.00-C:140.0
+```
+The values are soil humidity (M), temperature (T) pH value (pH) and conductivity (C). If the sensor is not in soil, these values might be zeros or not making any sense.
+
+
+_**Sensor not found
+```log
+> atc+stest=?
+Sensor Power Up
+OK
++EVT:Error reading sensor
+```
+
+----
+
+## Write to coils or registers (Not used in this example code)
 
 To control the coils, a downlink from the LoRaWAN server is required. The downlink packet format is     
 `AA55ccddnnv1v2` as hex values       
