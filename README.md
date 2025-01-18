@@ -127,7 +127,7 @@ _**`ATC+SENDINT=3600`**_ Get current send interval to 3600 seconds == 1 hour
 OK
 
 #### ⚠️ IMPORTANT ⚠️  
-Send interval cannot be less than 2 times the sensor power on time. With the current settings the minimum send interval is 20 minutes
+Send interval cannot be less than 2 times the sensor power on time. With the current settings the minimum send interval is 10 minutes
 
 ----
 
