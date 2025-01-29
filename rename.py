@@ -58,6 +58,8 @@ if board_type.find('RAK3172') != -1:
 	destination_directory = './generated_rak3172/'
 elif board_type.find('RAK4631') != -1:
 	destination_directory = './generated_rak4631/'
+elif board_type.find('apollo3') != -1:
+	destination_directory = './generated_rak11720/'
 else:
 	destination_directory = './generated/'
 
@@ -141,6 +143,11 @@ new_full_file = os.path.join(destination_directory, new_full_name)
 zip_name = project_name+'_V'+version+'.zip'
 hex_name = project_name+'_V'+version+'.hex'
 full_hex_name = project_name+'_V'+version+'_BL.hex'
+apollo_dfu_name = project_name+'.ino_Nonsecure_OTA_Package_BLE.bin'
+apollo_ota_name = project_name+'.ino_Nonsecure_OTA_Package_UART.bin'
+apollo_dfu_new = project_name+'_V'+version+'_OTA_Package_BLE.bin'
+apollo_ota_new = project_name+'_V'+version+'_OTA_Package_UART.bin'
+
 # print("Copied file " + copied_file)
 # print("Base name " + new_file)
 # print("ZIP name " + zip_name)
@@ -180,7 +187,7 @@ if board_type.find('RAK3172') != -1:
 		# print('Copied '+source_file +' to ' + new_file)
 	except:
 		print('Cannot copy '+source_file +' to ' + new_file)
-else:
+elif board_type.find('RAK4631') != -1:
 	# Copy the files
 	try:
 		shutil.copy2("./build/"+nrf_zip_file, destination_directory+zip_name)
@@ -199,6 +206,25 @@ else:
 		# print('RAK4631 copied'+source_file_full +' to ' + new_full_file)
 	except:
 		print('RAK4631 Cannot copy '+source_file_full +' to ' + new_full_file)
+else:
+		# Copy the files
+	try:
+		shutil.copy2("./build/"+apollo_dfu_name, destination_directory+apollo_dfu_new)
+		# print('RAK11720 copied '+apollo_dfu_name +' to '+destination_directory+apollo_dfu_new)
+	except:
+		print('RAK11720 Cannot copy '+apollo_dfu_name +' to '+destination_directory+apollo_dfu_new)
+
+	try:
+		shutil.copy2("./build/"+apollo_ota_name, destination_directory+apollo_ota_new)
+		# print('RAK11720 copied '+apollo_ota_name +' to '+destination_directory+apollo_ota_new)
+	except:
+		print('RAK11720 Cannot copy '+apollo_ota_name +' to '+destination_directory+apollo_ota_new)
+
+	try:
+		shutil.copy2(source_file, destination_directory+hex_name)
+		# print('RAK11720 copied '+source_file +' to ' + destination_directory+hex_name)
+	except:
+		print('RAK11720 Cannot copy '+source_file +' to ' + destination_directory+hex_name)
 
 print("++++++++++++++++++++++++++++++++++++++++++++++++++")
 print("Generated distribution files")

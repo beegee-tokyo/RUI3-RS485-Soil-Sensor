@@ -322,17 +322,6 @@ void modbus_read_register(void *test)
 					// Add TDS value to payload
 					g_solution_data.addConcentration(LPP_CHANNEL_TDS, (uint16_t)(coils_n_regs.sensor_data.reg_9));
 
-					float battery_reading = 0.0;
-					// Add battery voltage
-					for (int i = 0; i < 10; i++)
-					{
-						battery_reading += api.system.bat.get(); // get battery voltage
-					}
-
-					battery_reading = battery_reading / 10;
-
-					g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
-
 					break;
 				}
 			}
@@ -397,17 +386,6 @@ void modbus_read_register(void *test)
 
 					// Add pH value to payload
 					g_solution_data.addAnalogOutput(LPP_CHANNEL_PH, (uint16_t)(coils_n_regs.sensor_data.reg_4) / 100);
-
-					float battery_reading = 0.0;
-					// Add battery voltage
-					for (int i = 0; i < 10; i++)
-					{
-						battery_reading += api.system.bat.get(); // get battery voltage
-					}
-
-					battery_reading = battery_reading / 10;
-
-					g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
 
 					break;
 				}
@@ -486,17 +464,29 @@ void modbus_read_register(void *test)
 		return;
 	}
 
-	if (data_ready)
-	{
-		// Send the packet if data was received
-		send_packet();
-	}
 	// Shut down sensors and communication for lowest power consumption
 	digitalWrite(WB_IO2, LOW);
 	Serial1.end();
 	udrv_serial_deinit(SERIAL_UART1);
 	digitalWrite(LED_BLUE, LOW);
 	sensor_active = false;
+
+	if (data_ready)
+	{
+		float battery_reading = 0.0;
+		// Add battery voltage
+		for (int i = 0; i < 10; i++)
+		{
+			battery_reading += api.system.bat.get(); // get battery voltage
+		}
+
+		battery_reading = battery_reading / 10;
+
+		g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
+
+		// Send the packet if data was received
+		send_packet();
+	}
 }
 
 /**
