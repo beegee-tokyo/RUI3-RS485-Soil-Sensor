@@ -242,6 +242,9 @@ void modbus_read_register(void *test)
 	MYLOG("MODR", "Modbus master initialized");
 	delay(500);
 
+	// Clear payload
+	g_solution_data.reset();
+
 #ifdef VEMSEE
 	MYLOG("MODR", "Send read request over ModBus");
 	// Clear data structure
@@ -291,9 +294,6 @@ void modbus_read_register(void *test)
 					MYLOG("MODR", "TDS = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_9) * 1.0);
 
 					data_ready = true;
-
-					// Clear payload
-					g_solution_data.reset();
 
 					// Add temperature level to payload
 					g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 10.0);
@@ -371,9 +371,6 @@ void modbus_read_register(void *test)
 					MYLOG("MODR", "Conductivity = %.1f", (uint16_t)coils_n_regs.sensor_data.reg_3);
 					MYLOG("MODR", "pH = %.2f", (uint16_t)(coils_n_regs.sensor_data.reg_4) / 100.0);
 					data_ready = true;
-
-					// Clear payload
-					g_solution_data.reset();
 
 					// Add temperature level to payload
 					g_solution_data.addTemperature(LPP_CHANNEL_TEMP, coils_n_regs.sensor_data.reg_2 / 100);
@@ -471,19 +468,30 @@ void modbus_read_register(void *test)
 	digitalWrite(LED_BLUE, LOW);
 	sensor_active = false;
 
+	// Add battery voltage
+	float battery_reading = 0.0;
+
+	for (int i = 0; i < 10; i++)
+	{
+		battery_reading += api.system.bat.get(); // get battery voltage
+	}
+
+	battery_reading = battery_reading / 10;
+
+	g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
+
 	if (data_ready)
 	{
-		float battery_reading = 0.0;
-		// Add battery voltage
-		for (int i = 0; i < 10; i++)
-		{
-			battery_reading += api.system.bat.get(); // get battery voltage
-		}
+		// Report no error
+		g_solution_data.addDigitalInput(LPP_CHANNEL_ERROR, 0);
 
-		battery_reading = battery_reading / 10;
-
-		g_solution_data.addVoltage(LPP_CHANNEL_BATT, battery_reading);
-
+		// Send the packet if data was received
+		send_packet();
+	}
+	else
+	{
+		// Report error
+		g_solution_data.addDigitalInput(LPP_CHANNEL_ERROR, 1);
 		// Send the packet if data was received
 		send_packet();
 	}

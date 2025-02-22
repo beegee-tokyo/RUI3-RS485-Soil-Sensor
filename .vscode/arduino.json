@@ -1,16 +1,16 @@
 {
-    "configuration": "debug=l0,supportat=1,supportlora=1,supportAS923=1,supportAU915=1,supportCN470=2,supportCN779=2,supportEU433=2,supportEU868=1,supportKR920=1,supportIN865=1,supportUS915=1,supportRU864=1,supportLA915=1",
-    "board": "rak_rui:apollo3:WisCoreRAK11720Board",
+    "configuration": "softdevice=s140v6,debug=l0,supportnfc=1,supportat=1,supportlora=1,supportAS923=1,supportAU915=2,supportCN470=2,supportCN779=2,supportEU433=2,supportEU868=2,supportKR920=2,supportIN865=2,supportUS915=2,supportRU864=2,supportLA915=2",
+    "board": "rak_rui:nrf52:WisCoreRAK4631Board",
     "output": "build",
     "sketch": "RUI3-RS485-Soil-Sensor.ino",
     "port": "COM81",
     "buildPreferences": [
         [
             "compiler.cpp.extra_flags",
-            "-DMY_DEBUG=0 -DSW_VERSION_0=1 -DSW_VERSION_1=1 -DSW_VERSION_2=2 -DTEST_MODE=0"
+            "-DMY_DEBUG=0 -DSW_VERSION_0=1 -DSW_VERSION_1=1 -DSW_VERSION_2=3 -DTEST_MODE=0"
         ]
     ],
-    "version": "1.1.2",
+    "version": "1.1.3",
     "project": "RUI3-RS485-Soil-Sensor",
     "postbuild": "python rename.py"
 }

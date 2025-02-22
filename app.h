@@ -168,5 +168,6 @@ extern const char *sw_version;
 #define LPP_CHANNEL_POTA 8
 #define LPP_CHANNEL_SALIN 9
 #define LPP_CHANNEL_TDS 10
+#define LPP_CHANNEL_ERROR 11
 
 extern WisCayenne g_solution_data;
